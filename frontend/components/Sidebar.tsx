@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BookOpen, LayoutDashboard, Brain, Scan, BarChart3, Plus, Menu, X, LogOut, User as UserIcon, LogIn, Globe } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Brain, Scan, BarChart3, Plus, Menu, X, LogOut, User as UserIcon, LogIn, Globe, Sparkles } from 'lucide-react';
 
 export default function Sidebar({ dueCount = 0 }: { dueCount?: number }) {
   const path = usePathname();
