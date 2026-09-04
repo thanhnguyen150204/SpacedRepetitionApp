@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { getDecks, getDueCards, getStats } from '@/lib/api';
-import { BookOpen, Brain, Flame, TrendingUp, Plus, ChevronRight, Zap } from 'lucide-react';
+import { BookOpen, Brain, Flame, TrendingUp, Plus, ChevronRight, Zap, Lock, Globe } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -123,8 +123,11 @@ export default function DashboardPage() {
                   </div>
                 )}
                 <div className="deck-card-meta">
-                  <span className="badge badge-accent">
+                  <span className="badge badge-accent" style={{ gap: 4 }}>
                     <BookOpen size={11} /> {deck.totalCards} từ
+                  </span>
+                  <span className={`badge ${deck.isPublic ? 'badge-purple' : 'tag'}`} style={{ fontSize: 10, gap: 4 }}>
+                    {deck.isPublic ? <><Globe size={10} /> Công khai</> : <><Lock size={10} /> Riêng tư</>}
                   </span>
                 </div>
               </Link>

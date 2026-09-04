@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { createDeck } from '@/lib/api';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen, Lock, Globe } from 'lucide-react';
 
 export default function NewDeckPage() {
   const router = useRouter();
@@ -87,7 +87,7 @@ export default function NewDeckPage() {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>🔒</span>
+                    <Lock size={20} color={!form.isPublic ? 'var(--accent)' : 'var(--text-muted)'} />
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>Riêng tư (Auto)</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Chỉ mình bạn thấy</div>
@@ -103,7 +103,7 @@ export default function NewDeckPage() {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>🌐</span>
+                    <Globe size={20} color={form.isPublic ? 'var(--accent)' : 'var(--text-muted)'} />
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>Công khai mẫu</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Mọi người đều thấy & học</div>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { getDecks, deleteDeck } from '@/lib/api';
-import { BookOpen, Plus, Trash2, Edit, ChevronRight, Search } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Edit, ChevronRight, Search, Lock, Globe } from 'lucide-react';
 
 export default function DecksPage() {
   const [decks, setDecks] = useState<any[]>([]);
@@ -75,9 +75,9 @@ export default function DecksPage() {
                     </div>
                   )}
                   <div className="deck-card-meta">
-                    <span className="badge badge-accent"><BookOpen size={11} /> {deck.totalCards} từ</span>
-                    <span className={`badge ${deck.isPublic ? 'badge-purple' : 'tag'}`} style={{ fontSize: 10 }}>
-                      {deck.isPublic ? '🌐 Công khai' : '🔒 Riêng tư'}
+                    <span className="badge badge-accent" style={{ gap: 4 }}><BookOpen size={11} /> {deck.totalCards} từ</span>
+                    <span className={`badge ${deck.isPublic ? 'badge-purple' : 'tag'}`} style={{ fontSize: 10, gap: 4 }}>
+                      {deck.isPublic ? <><Globe size={11} /> Công khai</> : <><Lock size={11} /> Riêng tư</>}
                     </span>
                     <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
                       {new Date(deck.createdAt).toLocaleDateString('vi-VN')}

@@ -34,7 +34,7 @@ export default function Sidebar({ dueCount = 0 }: { dueCount?: number }) {
       {/* Mobile Top Navigation Bar */}
       <header className="mobile-header">
         <div className="logo" style={{ marginBottom: 0, padding: 0 }}>
-          <div className="logo-icon">🐷</div>
+          <div className="logo-icon"><Sparkles size={18} color="white" /></div>
           <div className="logo-text">HeoKem<span>English</span></div>
         </div>
         <button
@@ -56,7 +56,7 @@ export default function Sidebar({ dueCount = 0 }: { dueCount?: number }) {
       <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
         <div className="logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="logo-icon">🐷</div>
+            <div className="logo-icon"><Sparkles size={20} color="white" /></div>
             <div className="logo-text">HeoKem<span>English</span></div>
           </div>
           <button

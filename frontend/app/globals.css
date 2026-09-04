@@ -170,15 +170,16 @@ option {
 
 /* ── Badge ── */
 .badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 10px; border-radius: 20px;
-  font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; line-height: 1;
+  white-space: nowrap; transition: all 0.2s ease;
 }
-.badge-accent { background: var(--accent-glow); color: var(--accent); }
-.badge-green { background: rgba(5,150,105,0.1); color: var(--green); }
-.badge-rose { background: rgba(225,29,72,0.1); color: var(--rose); }
-.badge-amber { background: rgba(217,119,6,0.1); color: var(--amber); }
-.badge-purple { background: rgba(147,51,234,0.1); color: var(--purple); }
+.badge-accent { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(79,70,229,0.18); }
+.badge-green { background: rgba(5,150,105,0.08); color: var(--green); border: 1px solid rgba(5,150,105,0.2); }
+.badge-rose { background: rgba(225,29,72,0.08); color: var(--rose); border: 1px solid rgba(225,29,72,0.2); }
+.badge-amber { background: rgba(217,119,6,0.08); color: var(--amber); border: 1px solid rgba(217,119,6,0.2); }
+.badge-purple { background: rgba(147,51,234,0.08); color: var(--purple); border: 1px solid rgba(147,51,234,0.2); }
 
 /* ── Stat Card ── */
 .stat-card {
@@ -361,10 +362,11 @@ option {
 
 /* ── Tag ── */
 .tag {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 10px; border-radius: 20px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px;
   background: #f1f5f9; border: 1px solid var(--border);
-  font-size: 12px; color: var(--text-secondary);
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  line-height: 1; white-space: nowrap;
 }
 
 /* ── Mobile Responsive Layout ── */

@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { getDeck, getCards, createCard, updateCard, deleteCard, updateDeck, deleteDeck, generateQuestions } from '@/lib/api';
-import { ArrowLeft, Plus, Trash2, Edit, Brain, BookOpen, HelpCircle, Sparkles, X, Edit3 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, Brain, BookOpen, HelpCircle, Sparkles, X, Edit3, Lock, Globe, Calendar } from 'lucide-react';
 
 export default function DeckDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -164,13 +164,15 @@ export default function DeckDetailPage() {
                 </button>
               </div>
               {deck?.description && <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{deck.description}</p>}
-              <div style={{ display: 'flex', gap: 12, marginTop: 12, alignItems: 'center' }}>
-                <span className="badge badge-accent"><BookOpen size={11} /> {deck?.totalCards} từ</span>
-                <span className={`badge ${deck?.isPublic ? 'badge-purple' : 'tag'}`}>
-                  {deck?.isPublic ? '🌐 Công khai mẫu' : '🔒 Riêng tư'}
+              <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="badge badge-accent" style={{ gap: 5 }}>
+                  <BookOpen size={13} /> {deck?.totalCards} từ
                 </span>
-                <span className="badge badge-purple">
-                  {new Date(deck?.createdAt).toLocaleDateString('vi-VN')}
+                <span className={`badge ${deck?.isPublic ? 'badge-purple' : 'tag'}`} style={{ gap: 5 }}>
+                  {deck?.isPublic ? <><Globe size={13} /> Công khai mẫu</> : <><Lock size={13} /> Riêng tư</>}
+                </span>
+                <span className="badge badge-purple" style={{ gap: 5 }}>
+                  <Calendar size={13} /> {new Date(deck?.createdAt).toLocaleDateString('vi-VN')}
                 </span>
               </div>
             </div>
@@ -226,7 +228,8 @@ export default function DeckDetailPage() {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600,
                     }}
                   >
-                    <span>🔒</span> Riêng tư (Chỉ bạn thấy)
+                    <Lock size={15} color={!editDeckForm.isPublic ? 'var(--accent)' : 'var(--text-muted)'} />
+                    Riêng tư (Chỉ bạn thấy)
                   </button>
                   <button
                     type="button"
@@ -238,7 +241,8 @@ export default function DeckDetailPage() {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600,
                     }}
                   >
-                    <span>🌐</span> Công khai mẫu (Mọi người cùng xem & học)
+                    <Globe size={15} color={editDeckForm.isPublic ? 'var(--accent)' : 'var(--text-muted)'} />
+                    Công khai mẫu (Mọi người cùng xem & học)
                   </button>
                 </div>
               </div>
