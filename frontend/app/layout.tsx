@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'LexiSpark — Spaced Repetition English',
-  description: 'Master English vocabulary with AI-powered spaced repetition',
+  title: 'HeoKemEnglish — Spaced Repetition English',
+  description: 'Học từ vựng tiếng Anh thông minh với thuật toán Spaced Repetition',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

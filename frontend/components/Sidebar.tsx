@@ -10,8 +10,8 @@ export default function Sidebar({ dueCount = 0 }: { dueCount?: number }) {
   return (
     <aside className="sidebar">
       <div className="logo">
-        <div className="logo-icon">⚡</div>
-        <div className="logo-text">Lexi<span>Spark</span></div>
+        <div className="logo-icon">🐷</div>
+        <div className="logo-text">HeoKem<span>English</span></div>
       </div>
 
       <nav>
