@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { getDeck, getCards, createCard, deleteCard, generateQuestions } from '@/lib/api';
-import { ArrowLeft, Plus, Trash2, Brain, BookOpen, HelpCircle, Sparkles, X } from 'lucide-react';
+import { getDeck, getCards, createCard, updateCard, deleteCard, updateDeck, deleteDeck, generateQuestions } from '@/lib/api';
+import { ArrowLeft, Plus, Trash2, Edit, Brain, BookOpen, HelpCircle, Sparkles, X, Edit3 } from 'lucide-react';
 
 export default function DeckDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,14 +18,59 @@ export default function DeckDetailPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
 
+  // Edit Deck State
+  const [showEditDeck, setShowEditDeck] = useState(false);
+  const [editDeckForm, setEditDeckForm] = useState({ name: '', description: '' });
+  const [savingDeck, setSavingDeck] = useState(false);
+
+  // Edit Card State
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editCardForm, setEditCardForm] = useState({ term: '', definition: '', phonetic: '', partOfSpeech: '', exampleSentence: '' });
+  const [savingCardEdit, setSavingCardEdit] = useState(false);
+
   useEffect(() => {
     Promise.all([getDeck(id), getCards(id)])
-      .then(([d, c]) => { setDeck(d); setCards(c); })
+      .then(([d, c]) => {
+        setDeck(d);
+        setCards(c);
+        if (d) setEditDeckForm({ name: d.name, description: d.description || '' });
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
+  // ─── Deck CRUD ─────────────────────────────────────────
+  const handleUpdateDeck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDeckForm.name) return;
+    setSavingDeck(true);
+    try {
+      const updated = await updateDeck(id, editDeckForm);
+      setDeck(updated);
+      setShowEditDeck(false);
+      showToast('✅ Đã cập nhật thông tin bộ từ!');
+    } catch (err) {
+      showToast('❌ Không thể cập nhật bộ từ!');
+    } finally {
+      setSavingDeck(false);
+    }
+  };
+
+  const handleDeleteDeck = async () => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa bộ từ "${deck?.name}"? Tất cả từ vựng bên trong sẽ bị xóa vĩnh viễn!`)) {
+      return;
+    }
+    try {
+      await deleteDeck(id);
+      showToast('🗑️ Đã xóa bộ từ!');
+      router.push('/decks');
+    } catch (err) {
+      showToast('❌ Không thể xóa bộ từ!');
+    }
+  };
+
+  // ─── Card CRUD ─────────────────────────────────────────
   const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.term || !form.definition) return;
@@ -39,10 +84,36 @@ export default function DeckDetailPage() {
     } finally { setSaving(false); }
   };
 
+  const handleStartEditCard = (card: any) => {
+    setEditingCardId(card.id);
+    setEditCardForm({
+      term: card.term || '',
+      definition: card.definition || '',
+      phonetic: card.phonetic || '',
+      partOfSpeech: card.partOfSpeech || '',
+      exampleSentence: card.exampleSentence || '',
+    });
+  };
+
+  const handleSaveCardEdit = async (cardId: string) => {
+    if (!editCardForm.term || !editCardForm.definition) return;
+    setSavingCardEdit(true);
+    try {
+      const updated = await updateCard(id, cardId, editCardForm);
+      setCards((prev: any[]) => prev.map(c => c.id === cardId ? updated : c));
+      setEditingCardId(null);
+      showToast('✅ Đã cập nhật từ vựng!');
+    } catch (err) {
+      showToast('❌ Lỗi khi cập nhật từ vựng!');
+    } finally {
+      setSavingCardEdit(false);
+    }
+  };
+
   const handleDeleteCard = async (cardId: string) => {
     await deleteCard(id, cardId);
     setCards((prev: any[]) => prev.filter(c => c.id !== cardId));
-    setDeck((prev: any) => ({ ...prev, totalCards: (prev?.totalCards || 1) - 1 }));
+    setDeck((prev: any) => ({ ...prev, totalCards: Math.max(0, (prev?.totalCards || 1) - 1) }));
     showToast('🗑️ Đã xóa từ');
   };
 
@@ -66,15 +137,32 @@ export default function DeckDetailPage() {
     <div className="app-layout">
       <Sidebar />
       <main className="main-content animate-fade">
-        {/* Header */}
+        {/* Header Navigation */}
         <Link href="/decks" className="btn btn-ghost btn-sm" style={{ marginBottom: 20 }}>
           <ArrowLeft size={16} /> Bộ từ vựng
         </Link>
 
+        {/* Deck Card Header */}
         <div className="card" style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-            <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6 }}>{deck?.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 24, fontWeight: 800 }}>{deck?.name}</h1>
+                <button
+                  className="btn btn-ghost btn-sm btn-icon"
+                  title="Sửa thông tin bộ từ"
+                  onClick={() => setShowEditDeck(!showEditDeck)}
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  className="btn btn-danger btn-sm btn-icon"
+                  title="Xóa bộ từ"
+                  onClick={handleDeleteDeck}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
               {deck?.description && <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{deck.description}</p>}
               <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
                 <span className="badge badge-accent"><BookOpen size={11} /> {deck?.totalCards} từ</span>
@@ -83,7 +171,8 @@ export default function DeckDetailPage() {
                 </span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button onClick={handleGenerate} disabled={generating || cards.length < 2} className="btn btn-secondary btn-sm">
                 <Sparkles size={14} /> {generating ? 'Đang tạo...' : 'Tạo câu hỏi'}
               </button>
@@ -98,9 +187,42 @@ export default function DeckDetailPage() {
               </Link>
             </div>
           </div>
+
+          {/* Edit Deck Form */}
+          {showEditDeck && (
+            <form onSubmit={handleUpdateDeck} style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Sửa tên & mô tả bộ từ</h3>
+              <div className="grid-2" style={{ gap: 14, marginBottom: 14 }}>
+                <div className="input-group">
+                  <label className="input-label">Tên bộ từ *</label>
+                  <input
+                    className="input"
+                    value={editDeckForm.name}
+                    onChange={e => setEditDeckForm({ ...editDeckForm, name: e.target.value })}
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Mô tả ngắn</label>
+                  <input
+                    className="input"
+                    value={editDeckForm.description}
+                    onChange={e => setEditDeckForm({ ...editDeckForm, description: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={savingDeck || !editDeckForm.name}>
+                  {savingDeck ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowEditDeck(false)}>
+                  Hủy
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
-        {/* Add Card */}
+        {/* Add Card Section */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
@@ -108,7 +230,7 @@ export default function DeckDetailPage() {
           >
             <div style={{ fontWeight: 700, fontSize: 15 }}>
               <Plus size={16} style={{ display: 'inline', marginRight: 6 }} />
-              Thêm từ mới
+              Thêm từ mới vào bộ từ
             </div>
             <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{showAddCard ? '▲ Thu gọn' : '▼ Mở rộng'}</span>
           </div>
@@ -171,29 +293,112 @@ export default function DeckDetailPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {cards.map((card: any, idx: number) => (
-              <div key={card.id} className="card card-sm" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', width: 28, flexShrink: 0, textAlign: 'right' }}>
-                  {idx + 1}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <span style={{ fontWeight: 700, fontSize: 15 }}>{card.term}</span>
-                    {card.phonetic && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{card.phonetic}</span>}
-                    {card.partOfSpeech && <span className="badge badge-purple" style={{ fontSize: 10 }}>{card.partOfSpeech}</span>}
+              <div key={card.id} className="card card-sm" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {editingCardId === card.id ? (
+                  /* Edit Card Inline Form */
+                  <div style={{ padding: 6 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--accent)' }}>
+                      📝 Chỉnh sửa từ vựng
+                    </div>
+                    <div className="grid-2" style={{ gap: 10, marginBottom: 10 }}>
+                      <div>
+                        <label className="input-label">Từ / Cụm từ *</label>
+                        <input
+                          className="input"
+                          value={editCardForm.term}
+                          onChange={e => setEditCardForm({ ...editCardForm, term: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="input-label">Nghĩa *</label>
+                        <input
+                          className="input"
+                          value={editCardForm.definition}
+                          onChange={e => setEditCardForm({ ...editCardForm, definition: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="input-label">Phiên âm</label>
+                        <input
+                          className="input"
+                          value={editCardForm.phonetic}
+                          onChange={e => setEditCardForm({ ...editCardForm, phonetic: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="input-label">Loại từ</label>
+                        <select
+                          className="input"
+                          value={editCardForm.partOfSpeech}
+                          onChange={e => setEditCardForm({ ...editCardForm, partOfSpeech: e.target.value })}
+                        >
+                          <option value="">Chọn loại từ</option>
+                          <option value="noun">Noun (danh từ)</option>
+                          <option value="verb">Verb (động từ)</option>
+                          <option value="adjective">Adjective (tính từ)</option>
+                          <option value="adverb">Adverb (trạng từ)</option>
+                          <option value="phrase">Phrase (cụm từ)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label className="input-label">Câu ví dụ</label>
+                      <input
+                        className="input"
+                        value={editCardForm.exampleSentence}
+                        onChange={e => setEditCardForm({ ...editCardForm, exampleSentence: e.target.value })}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={savingCardEdit || !editCardForm.term || !editCardForm.definition}
+                        onClick={() => handleSaveCardEdit(card.id)}
+                      >
+                        {savingCardEdit ? 'Đang lưu...' : 'Cập nhật'}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingCardId(null)}>
+                        Hủy
+                      </button>
+                    </div>
                   </div>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{card.definition}</span>
-                  {card.exampleSentence && (
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
-                      "{card.exampleSentence}"
-                    </p>
-                  )}
-                </div>
-                <button
-                  className="btn btn-danger btn-sm btn-icon"
-                  onClick={() => handleDeleteCard(card.id)}
-                >
-                  <Trash2 size={14} />
-                </button>
+                ) : (
+                  /* Display Card View */
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', width: 28, flexShrink: 0, textAlign: 'right' }}>
+                      {idx + 1}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <span style={{ fontWeight: 700, fontSize: 15 }}>{card.term}</span>
+                        {card.phonetic && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{card.phonetic}</span>}
+                        {card.partOfSpeech && <span className="badge badge-purple" style={{ fontSize: 10 }}>{card.partOfSpeech}</span>}
+                      </div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{card.definition}</span>
+                      {card.exampleSentence && (
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
+                          "{card.exampleSentence}"
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        className="btn btn-secondary btn-sm btn-icon"
+                        title="Sửa từ vựng"
+                        onClick={() => handleStartEditCard(card)}
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm btn-icon"
+                        title="Xóa từ vựng"
+                        onClick={() => handleDeleteCard(card.id)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

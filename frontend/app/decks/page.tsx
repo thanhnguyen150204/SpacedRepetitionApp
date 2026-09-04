@@ -14,9 +14,13 @@ export default function DecksPage() {
     getDecks().then(setDecks).finally(() => setLoading(false));
   }, []);
 
-  const filtered = decks.filter(d =>
-    d.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const handleDeleteDeck = async (e: React.MouseEvent, deckId: string, name: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa bộ từ "${name}" không?`)) return;
+    await deleteDeck(deckId);
+    setDecks(prev => prev.filter(d => d.id !== deckId));
+  };
 
   return (
     <div className="app-layout">
@@ -80,6 +84,13 @@ export default function DecksPage() {
                   <Link href={`/decks/${deck.id}`} className="btn btn-secondary btn-sm btn-icon" title="Chi tiết bộ từ">
                     <Edit size={14} />
                   </Link>
+                  <button
+                    className="btn btn-danger btn-sm btn-icon"
+                    title="Xóa bộ từ"
+                    onClick={(e) => handleDeleteDeck(e, deck.id, deck.name)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             ))}
