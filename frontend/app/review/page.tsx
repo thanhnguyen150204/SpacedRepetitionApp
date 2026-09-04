@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+export const dynamic = 'force-dynamic';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
@@ -13,7 +14,7 @@ const RATING_BUTTONS = [
   { label: 'Easy',  key: 'easy',  quality: 5, className: 'rating-easy',  days: '~15+ ngày' },
 ];
 
-export default function ReviewPage() {
+function ReviewContent() {
   const searchParams = useSearchParams();
   const deckId = searchParams.get('deckId') || undefined;
 
@@ -216,5 +217,20 @@ export default function ReviewPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={
+      <div className="app-layout">
+        <Sidebar />
+        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="animate-spin" style={{ width: 40, height: 40, border: '3px solid rgba(99,102,241,0.3)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+        </main>
+      </div>
+    }>
+      <ReviewContent />
+    </Suspense>
   );
 }
