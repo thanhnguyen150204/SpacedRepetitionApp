@@ -31,6 +31,7 @@ import { OcrModule } from './ocr/ocr.module';
         entities: [Deck, VocabularyCard, CardReview, ReviewLog, StudySession, Question],
         synchronize: true,
         logging: false,
+        ssl: configService.get('DB_HOST') !== 'localhost' ? { rejectUnauthorized: false } : false,
       }),
       inject: [ConfigService],
     }),
