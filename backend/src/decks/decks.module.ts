@@ -1,3 +1,6 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Deck } from '../entities/deck.entity';
 import { VocabularyCard } from '../entities/vocabulary-card.entity';
 import { DecksController } from './decks.controller';
 import { DecksService } from './decks.service';
