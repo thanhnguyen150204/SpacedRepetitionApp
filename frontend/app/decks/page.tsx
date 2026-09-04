@@ -14,6 +14,10 @@ export default function DecksPage() {
     getDecks().then(setDecks).finally(() => setLoading(false));
   }, []);
 
+  const filtered = decks.filter(d =>
+    d.name.toLowerCase().includes(search.toLowerCase())
+  );
+
   const handleDeleteDeck = async (e: React.MouseEvent, deckId: string, name: string) => {
     e.stopPropagation();
     e.preventDefault();
