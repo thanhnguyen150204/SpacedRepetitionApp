@@ -9,6 +9,8 @@ import { CardReview } from './entities/card-review.entity';
 import { ReviewLog } from './entities/review-log.entity';
 import { StudySession } from './entities/study-session.entity';
 import { Question } from './entities/question.entity';
+import { User } from './entities/user.entity';
+import { AuthModule } from './auth/auth.module';
 import { DecksModule } from './decks/decks.module';
 import { CardsModule } from './cards/cards.module';
 import { ReviewModule } from './review/review.module';
@@ -28,13 +30,14 @@ import { OcrModule } from './ocr/ocr.module';
         username: configService.get('DB_USERNAME', 'spaced_user'),
         password: configService.get('DB_PASSWORD', 'spaced_pass'),
         database: configService.get('DB_DATABASE', 'spaced_repetition'),
-        entities: [Deck, VocabularyCard, CardReview, ReviewLog, StudySession, Question],
+        entities: [User, Deck, VocabularyCard, CardReview, ReviewLog, StudySession, Question],
         synchronize: true,
         logging: false,
         ssl: configService.get('DB_HOST') !== 'localhost' ? { rejectUnauthorized: false } : false,
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
     DecksModule,
     CardsModule,
     ReviewModule,

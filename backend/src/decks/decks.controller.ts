@@ -1,14 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { DecksService } from './decks.service';
 import { CreateDeckDto } from './dto/create-deck.dto';
+import { OptionalJwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('decks')
 export class DecksController {
   constructor(private readonly decksService: DecksService) {}
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
-  findAll() {
-    return this.decksService.findAll();
+  findAll(@Request() req: any) {
+    return this.decksService.findAll(req.user?.id);
   }
 
   @Get(':id')
@@ -16,9 +18,10 @@ export class DecksController {
     return this.decksService.findOne(id);
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateDeckDto) {
-    return this.decksService.create(dto);
+  create(@Body() dto: CreateDeckDto, @Request() req: any) {
+    return this.decksService.create(dto, req.user?.id);
   }
 
   @Put(':id')

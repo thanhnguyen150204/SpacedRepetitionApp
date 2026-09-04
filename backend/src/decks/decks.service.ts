@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Deck } from '../entities/deck.entity';
 import { CreateDeckDto } from './dto/create-deck.dto';
 
@@ -11,7 +11,13 @@ export class DecksService {
     private decksRepository: Repository<Deck>,
   ) {}
 
-  async findAll(): Promise<Deck[]> {
+  async findAll(userId?: string): Promise<Deck[]> {
+    if (userId) {
+      return this.decksRepository.find({
+        where: [{ userId }, { userId: IsNull() }],
+        order: { createdAt: 'DESC' },
+      });
+    }
     return this.decksRepository.find({ order: { createdAt: 'DESC' } });
   }
 
@@ -24,8 +30,8 @@ export class DecksService {
     return deck;
   }
 
-  async create(dto: CreateDeckDto): Promise<Deck> {
-    const deck = this.decksRepository.create(dto);
+  async create(dto: CreateDeckDto, userId?: string): Promise<Deck> {
+    const deck = this.decksRepository.create({ ...dto, userId });
     return this.decksRepository.save(deck);
   }
 

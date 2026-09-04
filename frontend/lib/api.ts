@@ -5,6 +5,21 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
+// ─── Auth ────────────────────────────────────────────────
+export const registerUser = (data: any) => api.post('/auth/register', data).then(r => r.data);
+export const loginUser = (data: any) => api.post('/auth/login', data).then(r => r.data);
+export const getMe = () => api.get('/auth/me').then(r => r.data);
+
 // ─── Decks ───────────────────────────────────────────────
 export const getDecks = () => api.get('/decks').then(r => r.data);
 export const getDeck = (id: string) => api.get(`/decks/${id}`).then(r => r.data);
