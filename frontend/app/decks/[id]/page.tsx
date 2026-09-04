@@ -20,7 +20,7 @@ export default function DeckDetailPage() {
 
   // Edit Deck State
   const [showEditDeck, setShowEditDeck] = useState(false);
-  const [editDeckForm, setEditDeckForm] = useState({ name: '', description: '' });
+  const [editDeckForm, setEditDeckForm] = useState({ name: '', description: '', isPublic: false });
   const [savingDeck, setSavingDeck] = useState(false);
 
   // Edit Card State
@@ -33,7 +33,7 @@ export default function DeckDetailPage() {
       .then(([d, c]) => {
         setDeck(d);
         setCards(c);
-        if (d) setEditDeckForm({ name: d.name, description: d.description || '' });
+        if (d) setEditDeckForm({ name: d.name, description: d.description || '', isPublic: !!d.isPublic });
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -164,8 +164,11 @@ export default function DeckDetailPage() {
                 </button>
               </div>
               {deck?.description && <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{deck.description}</p>}
-              <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+              <div style={{ display: 'flex', gap: 12, marginTop: 12, alignItems: 'center' }}>
                 <span className="badge badge-accent"><BookOpen size={11} /> {deck?.totalCards} từ</span>
+                <span className={`badge ${deck?.isPublic ? 'badge-purple' : 'tag'}`}>
+                  {deck?.isPublic ? '🌐 Công khai mẫu' : '🔒 Riêng tư'}
+                </span>
                 <span className="badge badge-purple">
                   {new Date(deck?.createdAt).toLocaleDateString('vi-VN')}
                 </span>
@@ -191,7 +194,7 @@ export default function DeckDetailPage() {
           {/* Edit Deck Form */}
           {showEditDeck && (
             <form onSubmit={handleUpdateDeck} style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Sửa tên & mô tả bộ từ</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Sửa tên, mô tả & quyền riêng tư</h3>
               <div className="grid-2" style={{ gap: 14, marginBottom: 14 }}>
                 <div className="input-group">
                   <label className="input-label">Tên bộ từ *</label>
@@ -208,6 +211,35 @@ export default function DeckDetailPage() {
                     value={editDeckForm.description}
                     onChange={e => setEditDeckForm({ ...editDeckForm, description: e.target.value })}
                   />
+                </div>
+              </div>
+              <div className="input-group" style={{ marginBottom: 16 }}>
+                <label className="input-label">Trạng thái chia sẻ</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setEditDeckForm({ ...editDeckForm, isPublic: false })}
+                    style={{
+                      flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+                      border: `1.5px solid ${!editDeckForm.isPublic ? 'var(--accent)' : 'var(--border)'}`,
+                      background: !editDeckForm.isPublic ? 'var(--accent-glow)' : 'var(--bg-card)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    <span>🔒</span> Riêng tư (Chỉ bạn thấy)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditDeckForm({ ...editDeckForm, isPublic: true })}
+                    style={{
+                      flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+                      border: `1.5px solid ${editDeckForm.isPublic ? 'var(--accent)' : 'var(--border)'}`,
+                      background: editDeckForm.isPublic ? 'var(--accent-glow)' : 'var(--bg-card)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    <span>🌐</span> Công khai mẫu (Mọi người cùng xem & học)
+                  </button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>

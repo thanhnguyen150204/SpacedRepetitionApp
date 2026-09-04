@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BookOpen, LayoutDashboard, Brain, Scan, BarChart3, Plus, Menu, X, LogOut, User as UserIcon, LogIn } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Brain, Scan, BarChart3, Plus, Menu, X, LogOut, User as UserIcon, LogIn, Globe } from 'lucide-react';
 
 export default function Sidebar({ dueCount = 0 }: { dueCount?: number }) {
   const path = usePathname();
@@ -75,9 +75,14 @@ export default function Sidebar({ dueCount = 0 }: { dueCount?: number }) {
             Dashboard
           </Link>
 
-          <Link href="/decks" onClick={closeSidebar} className={`nav-item ${isActive('/decks') ? 'active' : ''}`}>
+          <Link href="/decks" onClick={closeSidebar} className={`nav-item ${path === '/decks' ? 'active' : ''}`}>
             <BookOpen className="icon" />
-            Bộ từ vựng
+            Bộ từ vựng của tôi
+          </Link>
+
+          <Link href="/public-decks" onClick={closeSidebar} className={`nav-item ${isActive('/public-decks') ? 'active' : ''}`}>
+            <Globe className="icon" />
+            Mẫu bộ từ vựng
           </Link>
 
           <Link href="/review" onClick={closeSidebar} className={`nav-item ${isActive('/review') ? 'active' : ''}`}>

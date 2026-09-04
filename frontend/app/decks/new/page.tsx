@@ -8,7 +8,7 @@ import { ArrowLeft, BookOpen } from 'lucide-react';
 
 export default function NewDeckPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({ name: '', description: '', isPublic: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -72,6 +72,44 @@ export default function NewDeckPage() {
                   onChange={e => setForm({ ...form, description: e.target.value })}
                   rows={3}
                 />
+              </div>
+
+              {/* Visibility Toggle */}
+              <div className="input-group">
+                <label className="input-label">Quyền riêng tư</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div
+                    onClick={() => setForm({ ...form, isPublic: false })}
+                    style={{
+                      flex: 1, padding: '12px 14px', borderRadius: 'var(--radius-sm)',
+                      border: `1.5px solid ${!form.isPublic ? 'var(--accent)' : 'var(--border)'}`,
+                      background: !form.isPublic ? 'var(--accent-glow)' : 'var(--bg-card)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🔒</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Riêng tư (Auto)</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Chỉ mình bạn thấy</div>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setForm({ ...form, isPublic: true })}
+                    style={{
+                      flex: 1, padding: '12px 14px', borderRadius: 'var(--radius-sm)',
+                      border: `1.5px solid ${form.isPublic ? 'var(--accent)' : 'var(--border)'}`,
+                      background: form.isPublic ? 'var(--accent-glow)' : 'var(--bg-card)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🌐</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Công khai mẫu</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Mọi người đều thấy & học</div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {error && (

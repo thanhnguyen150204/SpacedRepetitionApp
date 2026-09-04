@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { DecksService } from './decks.service';
 import { CreateDeckDto } from './dto/create-deck.dto';
 import { OptionalJwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -13,6 +13,19 @@ export class DecksController {
     return this.decksService.findAll(req.user?.id);
   }
 
+  @Get('public')
+  findPublicDecks(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('search') search?: string,
+  ) {
+    return this.decksService.findPublicDecks(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 9,
+      search || '',
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.decksService.findOne(id);
@@ -22,6 +35,12 @@ export class DecksController {
   @Post()
   create(@Body() dto: CreateDeckDto, @Request() req: any) {
     return this.decksService.create(dto, req.user?.id);
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @Post(':id/clone')
+  clone(@Param('id') id: string, @Request() req: any) {
+    return this.decksService.clonePublicDeck(id, req.user?.id);
   }
 
   @Put(':id')

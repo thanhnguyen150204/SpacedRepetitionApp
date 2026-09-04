@@ -22,8 +22,11 @@ export const getMe = () => api.get('/auth/me').then(r => r.data);
 
 // ─── Decks ───────────────────────────────────────────────
 export const getDecks = () => api.get('/decks').then(r => r.data);
+export const getPublicDecks = (page = 1, limit = 9, search = '') =>
+  api.get('/decks/public', { params: { page, limit, search } }).then(r => r.data);
 export const getDeck = (id: string) => api.get(`/decks/${id}`).then(r => r.data);
 export const createDeck = (data: any) => api.post('/decks', data).then(r => r.data);
+export const cloneDeck = (id: string) => api.post(`/decks/${id}/clone`).then(r => r.data);
 export const updateDeck = (id: string, data: any) => api.put(`/decks/${id}`, data).then(r => r.data);
 export const deleteDeck = (id: string) => api.delete(`/decks/${id}`).then(r => r.data);
 

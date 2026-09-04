@@ -76,6 +76,9 @@ export default function DecksPage() {
                   )}
                   <div className="deck-card-meta">
                     <span className="badge badge-accent"><BookOpen size={11} /> {deck.totalCards} từ</span>
+                    <span className={`badge ${deck.isPublic ? 'badge-purple' : 'tag'}`} style={{ fontSize: 10 }}>
+                      {deck.isPublic ? '🌐 Công khai' : '🔒 Riêng tư'}
+                    </span>
                     <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
                       {new Date(deck.createdAt).toLocaleDateString('vi-VN')}
                     </span>
