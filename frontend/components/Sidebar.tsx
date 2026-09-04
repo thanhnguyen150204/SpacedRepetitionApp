@@ -111,7 +111,7 @@ export default function Sidebar({ dueCount = 0 }: { dueCount?: number }) {
           {user ? (
             <div style={{ padding: 10, background: 'var(--bg-card-hover)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-glow)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-glow)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                   {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div style={{ overflow: 'hidden' }}>
