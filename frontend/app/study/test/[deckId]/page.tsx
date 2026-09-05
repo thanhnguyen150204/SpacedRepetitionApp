@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getQuestions, generateQuestions, startSession, endSession, submitReview } from '@/lib/api';
-import { ArrowLeft, CheckCircle, XCircle, RotateCcw, Clock, Zap, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, RotateCcw, Clock, Zap, AlertTriangle, FileText } from 'lucide-react';
 import Confetti from '@/components/Confetti';
 
 function shuffle<T>(arr: T[]): T[] {
@@ -12,12 +12,21 @@ function shuffle<T>(arr: T[]): T[] {
 
 const QUESTION_TIME_LIMIT = 15; // 15 seconds per question
 
+interface TestAnswerRecord {
+  questionText: string;
+  selectedOpt: string | null;
+  correctAnswer: string;
+  isCorrect: boolean;
+  isTimeout: boolean;
+}
+
 export default function TimedTestPage() {
   const { deckId } = useParams<{ deckId: string }>();
   const router = useRouter();
   const [questions, setQuestions] = useState<any[]>([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [userAnswers, setUserAnswers] = useState<TestAnswerRecord[]>([]);
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -25,7 +34,7 @@ export default function TimedTestPage() {
   const [session, setSession] = useState<any>(null);
   const [options, setOptions] = useState<string[]>([]);
   
-  // Timer state (in milliseconds for smooth bar animation)
+  // Timer state
   const [timeLeftMs, setTimeLeftMs] = useState(QUESTION_TIME_LIMIT * 1000);
   const timerRef = useRef<any>(null);
   const isTransitioningRef = useRef(false);
@@ -54,7 +63,7 @@ export default function TimedTestPage() {
     });
   }, [deckId, buildOptions]);
 
-  // Start question timer tick
+  // Handle timeout for a question during exam
   const handleTimeOut = useCallback(async () => {
     if (isTransitioningRef.current || done) return;
     isTransitioningRef.current = true;
@@ -63,6 +72,17 @@ export default function TimedTestPage() {
     const currentQ = questions[index];
     const newWrong = wrong + 1;
     setWrong(newWrong);
+
+    setUserAnswers(prev => [
+      ...prev,
+      {
+        questionText: currentQ?.questionText || '',
+        selectedOpt: null,
+        correctAnswer: currentQ?.correctAnswer || '',
+        isCorrect: false,
+        isTimeout: true,
+      }
+    ]);
 
     // Auto-enroll wrong answer into Spaced Repetition queue
     if (currentQ?.cardId) {
@@ -82,7 +102,7 @@ export default function TimedTestPage() {
         setTimeLeftMs(QUESTION_TIME_LIMIT * 1000);
         isTransitioningRef.current = false;
       }
-    }, 1200);
+    }, 200);
   }, [done, questions, index, wrong, correct, session, buildOptions]);
 
   useEffect(() => {
@@ -123,12 +143,24 @@ export default function TimedTestPage() {
     setCorrect(newCorrect);
     setWrong(newWrong);
 
+    setUserAnswers(prev => [
+      ...prev,
+      {
+        questionText: currentQ?.questionText || '',
+        selectedOpt: opt,
+        correctAnswer: currentQ?.correctAnswer || '',
+        isCorrect,
+        isTimeout: false,
+      }
+    ]);
+
     if (!isCorrect && currentQ?.cardId) {
       try {
         await submitReview({ cardId: currentQ.cardId, quality: 0, sessionId: session?.id });
       } catch (err) {}
     }
 
+    // Quick transition without revealing correct/wrong during the test!
     setTimeout(async () => {
       if (index + 1 >= questions.length) {
         if (session) await endSession(session.id, newCorrect, newWrong);
@@ -140,7 +172,7 @@ export default function TimedTestPage() {
         setTimeLeftMs(QUESTION_TIME_LIMIT * 1000);
         isTransitioningRef.current = false;
       }
-    }, 1000);
+    }, 250);
   };
 
   if (loading) return (
@@ -150,51 +182,111 @@ export default function TimedTestPage() {
   );
 
   if (done) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)', position: 'relative' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '40px 20px', position: 'relative' }}>
       <Confetti />
-      <div className="card animate-up" style={{ maxWidth: 420, width: '100%', textAlign: 'center', padding: 40, zIndex: 10 }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>
-          {correct / questions.length >= 0.8 ? '🏆' : correct / questions.length >= 0.5 ? '⚡' : '💪'}
-        </div>
-        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Kết quả Bài Test Đếm Ngược</h2>
-        <div style={{ fontSize: 52, fontWeight: 900, color: correct / questions.length >= 0.7 ? 'var(--green)' : 'var(--amber)', marginBottom: 8 }}>
-          {Math.round((correct / (questions.length || 1)) * 100)}%
-        </div>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
-          {correct}/{questions.length} câu trả lời đúng
-        </p>
-
-        <div className="grid-2" style={{ marginBottom: 24 }}>
-          <div className="stat-card" style={{ textAlign: 'center' }}>
-            <span className="stat-label">Đúng</span>
-            <span className="stat-value" style={{ color: 'var(--green)', fontSize: 32 }}>{correct}</span>
+      <div style={{ maxWidth: 680, margin: '0 auto', zIndex: 10, position: 'relative' }}>
+        
+        {/* Summary Card */}
+        <div className="card animate-up" style={{ textAlign: 'center', padding: 40, marginBottom: 28 }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>
+            {correct / (questions.length || 1) >= 0.8 ? '🏆' : correct / (questions.length || 1) >= 0.5 ? '⚡' : '💪'}
           </div>
-          <div className="stat-card" style={{ textAlign: 'center' }}>
-            <span className="stat-label">Sai / Trễ</span>
-            <span className="stat-value" style={{ color: 'var(--rose)', fontSize: 32 }}>{wrong}</span>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Kết quả Bài Test Đếm Ngược</h2>
+          <div style={{ fontSize: 52, fontWeight: 900, color: correct / (questions.length || 1) >= 0.7 ? 'var(--green)' : 'var(--amber)', marginBottom: 8 }}>
+            {Math.round((correct / (questions.length || 1)) * 100)}%
+          </div>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+            Đã hoàn thành tất cả {questions.length} câu hỏi trong bài test
+          </p>
+
+          <div className="grid-2" style={{ marginBottom: 24 }}>
+            <div className="stat-card" style={{ textAlign: 'center' }}>
+              <span className="stat-label">Trả lời Đúng</span>
+              <span className="stat-value" style={{ color: 'var(--green)', fontSize: 32 }}>{correct}</span>
+            </div>
+            <div className="stat-card" style={{ textAlign: 'center' }}>
+              <span className="stat-label">Sai / Hết giờ</span>
+              <span className="stat-value" style={{ color: 'var(--rose)', fontSize: 32 }}>{wrong}</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button
+              className="btn btn-primary btn-lg"
+              style={{ flex: 1, justifyContent: 'center' }}
+              onClick={() => {
+                setIndex(0);
+                setSelected(null);
+                setUserAnswers([]);
+                setCorrect(0);
+                setWrong(0);
+                setDone(false);
+                setTimeLeftMs(QUESTION_TIME_LIMIT * 1000);
+                isTransitioningRef.current = false;
+                buildOptions(questions, 0);
+              }}
+            >
+              <RotateCcw size={18} /> Thử thách lại
+            </button>
+            <Link href={`/public-decks`} className="btn btn-secondary btn-lg" style={{ flex: 1, justifyContent: 'center' }}>
+              Về Mẫu bộ từ
+            </Link>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
-          <button
-            className="btn btn-primary btn-lg"
-            onClick={() => {
-              setIndex(0);
-              setSelected(null);
-              setCorrect(0);
-              setWrong(0);
-              setDone(false);
-              setTimeLeftMs(QUESTION_TIME_LIMIT * 1000);
-              isTransitioningRef.current = false;
-              buildOptions(questions, 0);
-            }}
-          >
-            <RotateCcw size={18} /> Thử thách lại
-          </button>
-          <Link href={`/public-decks`} className="btn btn-secondary" style={{ justifyContent: 'center' }}>
-            Về Mẫu bộ từ
-          </Link>
+        {/* Detailed Answer Key Breakdown */}
+        <div className="card animate-up" style={{ padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+            <FileText size={20} color="var(--accent)" />
+            <h3 style={{ fontSize: 18, fontWeight: 800 }}>Chi tiết kết quả bài Test</h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {userAnswers.map((ans, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: 16,
+                  borderRadius: 'var(--radius-sm)',
+                  border: `1.5px solid ${ans.isCorrect ? 'rgba(5,150,105,0.3)' : 'rgba(225,29,72,0.3)'}`,
+                  background: ans.isCorrect ? 'rgba(5,150,105,0.04)' : 'rgba(225,29,72,0.04)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+                    <span style={{ color: 'var(--text-muted)', marginRight: 8 }}>Câu {idx + 1}:</span>
+                    {ans.questionText}
+                  </div>
+                  {ans.isCorrect ? (
+                    <span className="badge badge-green" style={{ gap: 4 }}>
+                      <CheckCircle size={12} /> Đúng
+                    </span>
+                  ) : ans.isTimeout ? (
+                    <span className="badge badge-rose" style={{ gap: 4 }}>
+                      <Clock size={12} /> Hết giờ
+                    </span>
+                  ) : (
+                    <span className="badge badge-rose" style={{ gap: 4 }}>
+                      <XCircle size={12} /> Sai
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                  {!ans.isCorrect && (
+                    <div style={{ color: 'var(--rose)', fontWeight: 600 }}>
+                      ❌ Bạn chọn: {ans.selectedOpt || 'Không chọn (Hết thời gian)'}
+                    </div>
+                  )}
+                  <div style={{ color: 'var(--green)', fontWeight: 700 }}>
+                    🟢 Đáp án đúng: {ans.correctAnswer}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+
       </div>
     </div>
   );
@@ -204,7 +296,6 @@ export default function TimedTestPage() {
   const timeSeconds = (timeLeftMs / 1000).toFixed(1);
   const timeRatio = timeLeftMs / (QUESTION_TIME_LIMIT * 1000);
 
-  // Timer Bar Color based on remaining time
   let timerColor = 'var(--accent)';
   if (timeRatio < 0.4) timerColor = 'var(--amber)';
   if (timeRatio < 0.2) timerColor = 'var(--rose)';
@@ -226,9 +317,8 @@ export default function TimedTestPage() {
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 12, fontSize: 14, fontWeight: 700 }}>
-          <span style={{ color: 'var(--green)' }}>✓ {correct}</span>
-          <span style={{ color: 'var(--rose)' }}>✗ {wrong}</span>
+        <div style={{ display: 'flex', gap: 12, fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>
+          <span>Đang làm bài test (kết quả công bố khi hoàn thành)</span>
         </div>
       </div>
 
@@ -266,7 +356,7 @@ export default function TimedTestPage() {
           {/* Question Box */}
           <div className="card" style={{ marginBottom: 20, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Câu hỏi {index + 1}
+              Câu hỏi {index + 1} / {questions.length}
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.5, color: 'var(--text-primary)' }}>
               {q?.questionText}
@@ -276,16 +366,16 @@ export default function TimedTestPage() {
           {/* 4 Choices */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {options.map((opt, i) => {
-              let cls = 'quiz-option';
-              if (selected !== null) {
-                if (opt === q?.correctAnswer) cls += ' correct';
-                else if (opt === selected) cls += ' wrong';
-              }
+              const isSelectedOpt = selected === opt;
               return (
                 <button
                   key={i}
                   id={`test-option-${i}`}
-                  className={cls}
+                  className="quiz-option"
+                  style={{
+                    border: isSelectedOpt ? '1.5px solid var(--accent)' : undefined,
+                    background: isSelectedOpt ? 'var(--accent-glow)' : undefined,
+                  }}
                   onClick={() => handleSelect(opt)}
                   disabled={selected !== null}
                 >
@@ -294,24 +384,11 @@ export default function TimedTestPage() {
                       <strong style={{ marginRight: 10, opacity: 0.5 }}>{String.fromCharCode(65 + i)}.</strong>
                       {opt}
                     </span>
-                    {selected !== null && opt === q?.correctAnswer && (
-                      <CheckCircle size={18} color="var(--green)" />
-                    )}
-                    {selected !== null && opt === selected && opt !== q?.correctAnswer && (
-                      <XCircle size={18} color="var(--rose)" />
-                    )}
                   </div>
                 </button>
               );
             })}
           </div>
-
-          {selected === '__TIMEOUT__' && (
-            <div className="card animate-up" style={{ marginTop: 16, padding: 14, background: 'rgba(225,29,72,0.08)', border: '1px solid rgba(225,29,72,0.25)', color: 'var(--rose)', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, fontWeight: 600 }}>
-              <AlertTriangle size={18} />
-              <span>Hết thời gian! Đáp án đúng là: <strong>"{q?.correctAnswer}"</strong></span>
-            </div>
-          )}
 
         </div>
       </div>
