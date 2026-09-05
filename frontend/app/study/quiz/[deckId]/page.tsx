@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getQuestions, generateQuestions, startSession, endSession } from '@/lib/api';
+import { getQuestions, generateQuestions, startSession, endSession, submitReview } from '@/lib/api';
 import { ArrowLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 
 function shuffle<T>(arr: T[]): T[] {
@@ -48,11 +48,21 @@ export default function QuizPage() {
   const handleSelect = async (opt: string) => {
     if (selected) return;
     setSelected(opt);
-    const isCorrect = opt === questions[index].correctAnswer;
+    const currentQ = questions[index];
+    const isCorrect = opt === currentQ.correctAnswer;
     const newCorrect = correct + (isCorrect ? 1 : 0);
     const newWrong = wrong + (isCorrect ? 0 : 1);
     setCorrect(newCorrect);
     setWrong(newWrong);
+
+    // If answered WRONG in Quiz, automatically enroll card into Today's Spaced Repetition review queue with 1-day reminder!
+    if (!isCorrect && currentQ?.cardId) {
+      try {
+        await submitReview({ cardId: currentQ.cardId, quality: 0, sessionId: session?.id });
+      } catch (err) {
+        console.error('Failed to submit wrong quiz item to review queue:', err);
+      }
+    }
 
     setTimeout(async () => {
       if (index + 1 >= questions.length) {

@@ -3,6 +3,7 @@ import {
   ManyToOne, JoinColumn,
 } from 'typeorm';
 import { Deck } from './deck.entity';
+import { User } from './user.entity';
 
 export enum SessionType {
   FLASHCARD = 'flashcard',
@@ -14,6 +15,13 @@ export enum SessionType {
 export class StudySession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ name: 'user_id', nullable: true })
+  userId: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column({ name: 'deck_id', nullable: true })
   deckId: string;

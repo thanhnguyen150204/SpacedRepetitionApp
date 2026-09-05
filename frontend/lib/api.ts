@@ -43,8 +43,14 @@ export const deleteCard = (deckId: string, cardId: string) =>
 // ─── Review (SM-2) ───────────────────────────────────────
 export const getDueCards = (deckId?: string) =>
   api.get('/review/due', { params: deckId ? { deckId } : {} }).then(r => r.data);
+export const getUserCardStates = (cardIds: string[]) =>
+  api.get('/review/user-states', { params: { cardIds: cardIds.join(',') } }).then(r => r.data);
 export const submitReview = (data: { cardId: string; quality: number; responseTimeMs?: number; sessionId?: string }) =>
   api.post('/review/submit', data).then(r => r.data);
+export const toggleCardFlag = (cardId: string, isFlagged?: boolean) =>
+  api.post('/review/toggle-flag', { cardId, isFlagged }).then(r => r.data);
+export const enrollDeckForReview = (deckId: string) =>
+  api.post(`/review/enroll-deck/${deckId}`).then(r => r.data);
 export const getStats = () => api.get('/review/stats').then(r => r.data);
 export const resetCard = (cardId: string) => api.post(`/review/reset/${cardId}`).then(r => r.data);
 

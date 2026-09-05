@@ -1,19 +1,22 @@
-import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { SessionType } from '../entities/study-session.entity';
+import { OptionalJwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('sessions')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
-  findAll() {
-    return this.sessionsService.findAll();
+  findAll(@Request() req: any) {
+    return this.sessionsService.findAll(req.user?.id);
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('start')
-  start(@Body() body: { deckId: string; sessionType: SessionType }) {
-    return this.sessionsService.start(body.deckId, body.sessionType);
+  start(@Request() req: any, @Body() body: { deckId: string; sessionType: SessionType }) {
+    return this.sessionsService.start(body.deckId, body.sessionType, req.user?.id);
   }
 
   @Put(':id/end')
@@ -24,3 +27,4 @@ export class SessionsController {
     return this.sessionsService.end(id, body.cardsCorrect, body.cardsWrong);
   }
 }
+

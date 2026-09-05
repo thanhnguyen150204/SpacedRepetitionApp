@@ -4,11 +4,19 @@ import {
 } from 'typeorm';
 import { VocabularyCard } from './vocabulary-card.entity';
 import { StudySession } from './study-session.entity';
+import { User } from './user.entity';
 
 @Entity('review_logs')
 export class ReviewLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ name: 'user_id', nullable: true })
+  userId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE', eager: false })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column({ name: 'card_id' })
   cardId: string;

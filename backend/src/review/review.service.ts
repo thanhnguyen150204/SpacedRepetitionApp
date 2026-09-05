@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual } from 'typeorm';
+import { Repository, LessThanOrEqual, In } from 'typeorm';
 import { CardReview } from '../entities/card-review.entity';
 import { ReviewLog } from '../entities/review-log.entity';
 import { VocabularyCard } from '../entities/vocabulary-card.entity';
@@ -18,8 +18,8 @@ export class ReviewService {
     private cardRepo: Repository<VocabularyCard>,
   ) {}
 
-  /** Get all cards due for review today */
-  async getDueCards(deckId?: string): Promise<any[]> {
+  /** Get all cards due for review today for a specific user */
+  async getDueCards(userId: string, deckId?: string): Promise<any[]> {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
@@ -27,7 +27,11 @@ export class ReviewService {
       .createQueryBuilder('cr')
       .innerJoinAndSelect('cr.card', 'card')
       .innerJoinAndSelect('card.deck', 'deck')
-      .where('cr.next_review_date <= :today', { today });
+      .where('cr.user_id = :userId', { userId })
+      .andWhere('cr.next_review_date <= :today', { today })
+      .andWhere(
+        '(cr.last_reviewed_at IS NOT NULL OR cr.is_flagged = true OR cr.repetitions > 0)',
+      );
 
     if (deckId) {
       qb.andWhere('card.deck_id = :deckId', { deckId });
@@ -35,23 +39,69 @@ export class ReviewService {
 
     const reviews = await qb.orderBy('cr.next_review_date', 'ASC').getMany();
 
-    return reviews.map((r) => ({
-      reviewId: r.id,
-      card: r.card,
-      interval: r.interval,
-      repetitions: r.repetitions,
-      easinessFactor: r.easinessFactor,
-      lastReviewedAt: r.lastReviewedAt,
-    }));
+    if (reviews.length === 0) return [];
+
+    // Fetch all vocabulary cards to create distractor options for 4-choice quiz
+    const allCards = await this.cardRepo.find({ take: 200 });
+
+    return reviews.map((r) => {
+      const distractors = allCards
+        .filter((c) => c.id !== r.cardId && c.definition !== r.card.definition)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map((c) => c.definition);
+
+      // Shuffle correct answer with distractors
+      const options = [r.card.definition, ...distractors].sort(() => Math.random() - 0.5);
+
+      return {
+        reviewId: r.id,
+        card: r.card,
+        interval: r.interval,
+        repetitions: r.repetitions,
+        easinessFactor: r.easinessFactor,
+        lastReviewedAt: r.lastReviewedAt,
+        isFlagged: r.isFlagged,
+        options,
+      };
+    });
   }
 
-  /** Submit review result and update SM-2 state */
-  async submitReview(dto: SubmitReviewDto): Promise<CardReview> {
-    const review = await this.cardReviewRepo.findOne({
-      where: { cardId: dto.cardId },
+  /** Get user's review state or flagged status for cards in a deck */
+  async getUserCardReviews(userId: string, cardIds: string[]): Promise<Record<string, { isFlagged: boolean; repetitions: number; nextReviewDate: Date | null }>> {
+    if (!cardIds.length) return {};
+
+    const reviews = await this.cardReviewRepo.find({
+      where: { userId, cardId: In(cardIds) },
     });
 
-    if (!review) throw new NotFoundException(`Review state for card ${dto.cardId} not found`);
+    const map: Record<string, { isFlagged: boolean; repetitions: number; nextReviewDate: Date | null }> = {};
+    reviews.forEach((r) => {
+      map[r.cardId] = {
+        isFlagged: r.isFlagged,
+        repetitions: r.repetitions,
+        nextReviewDate: r.nextReviewDate,
+      };
+    });
+    return map;
+  }
+
+  /** Submit review result and update SM-2 state for user */
+  async submitReview(userId: string, dto: SubmitReviewDto): Promise<CardReview> {
+    let review = await this.cardReviewRepo.findOne({
+      where: { userId, cardId: dto.cardId },
+    });
+
+    if (!review) {
+      review = this.cardReviewRepo.create({
+        userId,
+        cardId: dto.cardId,
+        interval: 0,
+        repetitions: 0,
+        easinessFactor: 2.5,
+        isFlagged: true,
+      });
+    }
 
     const intervalBefore = review.interval;
 
@@ -73,6 +123,7 @@ export class ReviewService {
 
     // Log the review
     const log = this.reviewLogRepo.create({
+      userId,
       cardId: dto.cardId,
       sessionId: dto.sessionId || null,
       quality: dto.quality,
@@ -85,22 +136,98 @@ export class ReviewService {
     return review;
   }
 
-  /** Get review statistics */
-  async getStats(): Promise<any> {
-    const totalCards = await this.cardReviewRepo.count();
+  /** Toggle flag for a card in user's review schedule */
+  async toggleFlag(userId: string, cardId: string, isFlagged?: boolean): Promise<CardReview> {
+    let review = await this.cardReviewRepo.findOne({
+      where: { userId, cardId },
+    });
+
+    const targetFlagged = isFlagged !== undefined ? isFlagged : !(review?.isFlagged ?? false);
+
+    if (!review) {
+      review = this.cardReviewRepo.create({
+        userId,
+        cardId,
+        isFlagged: targetFlagged,
+        interval: 0,
+        repetitions: 0,
+        easinessFactor: 2.5,
+        nextReviewDate: new Date(),
+      });
+    } else {
+      review.isFlagged = targetFlagged;
+      if (targetFlagged && !review.nextReviewDate) {
+        review.nextReviewDate = new Date();
+      }
+    }
+
+    return this.cardReviewRepo.save(review);
+  }
+
+  /** Enroll all cards in a deck to user's SM-2 review schedule */
+  async enrollDeck(userId: string, deckId: string): Promise<{ enrolledCount: number }> {
+    const cards = await this.cardRepo.find({ where: { deckId } });
+    if (!cards.length) return { enrolledCount: 0 };
+
+    const existingReviews = await this.cardReviewRepo.find({
+      where: { userId, cardId: In(cards.map((c) => c.id)) },
+    });
+
+    const existingMap = new Map(existingReviews.map((r) => [r.cardId, r]));
+    const today = new Date();
+
+    const toSave: CardReview[] = [];
+    for (const card of cards) {
+      const existing = existingMap.get(card.id);
+      if (!existing) {
+        toSave.push(
+          this.cardReviewRepo.create({
+            userId,
+            cardId: card.id,
+            isFlagged: true,
+            interval: 0,
+            repetitions: 0,
+            easinessFactor: 2.5,
+            nextReviewDate: today,
+          }),
+        );
+      } else {
+        existing.isFlagged = true;
+        if (!existing.nextReviewDate) existing.nextReviewDate = today;
+        toSave.push(existing);
+      }
+    }
+
+    await this.cardReviewRepo.save(toSave);
+    return { enrolledCount: toSave.length };
+  }
+
+  /** Get review statistics for user */
+  async getStats(userId: string): Promise<any> {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
+    const totalCards = await this.cardRepo
+      .createQueryBuilder('card')
+      .innerJoin('card.deck', 'deck')
+      .where('(deck.user_id = :userId OR deck.user_id IS NULL)', { userId })
+      .getCount();
+
     const dueToday = await this.cardReviewRepo.count({
-      where: { nextReviewDate: LessThanOrEqual(today) },
+      where: {
+        userId,
+        nextReviewDate: LessThanOrEqual(today),
+      },
     });
 
     const learned = await this.cardReviewRepo.count({
-      where: { repetitions: 1 },
+      where: { userId, repetitions: 1 },
     });
+
     const mastered = await this.cardReviewRepo
       .createQueryBuilder('cr')
-      .where('cr.repetitions >= :n', { n: 4 })
+      .where('cr.user_id = :userId', { userId })
+      .andWhere('cr.repetitions >= :n', { n: 4 })
       .getCount();
 
     const recentLogs = await this.reviewLogRepo
@@ -108,6 +235,7 @@ export class ReviewService {
       .select('DATE(rl.reviewed_at)', 'date')
       .addSelect('COUNT(*)', 'count')
       .addSelect('AVG(rl.quality)', 'avgQuality')
+      .where('rl.user_id = :userId', { userId })
       .groupBy('DATE(rl.reviewed_at)')
       .orderBy('date', 'DESC')
       .limit(30)
@@ -116,15 +244,19 @@ export class ReviewService {
     return { totalCards, dueToday, learned, mastered, recentLogs };
   }
 
-  /** Reset a card's SM-2 state */
-  async resetCard(cardId: string): Promise<CardReview> {
-    const review = await this.cardReviewRepo.findOne({ where: { cardId } });
-    if (!review) throw new NotFoundException(`Review not found`);
+  /** Reset a card's SM-2 state for user */
+  async resetCard(userId: string, cardId: string): Promise<CardReview> {
+    let review = await this.cardReviewRepo.findOne({ where: { userId, cardId } });
+    if (!review) {
+      review = this.cardReviewRepo.create({ userId, cardId });
+    }
     review.interval = 0;
     review.repetitions = 0;
     review.easinessFactor = 2.5;
     review.nextReviewDate = new Date();
     review.lastQuality = null;
+    review.isFlagged = false;
     return this.cardReviewRepo.save(review);
   }
 }
+

@@ -3,12 +3,20 @@ import {
   UpdateDateColumn, ManyToOne, JoinColumn, Unique,
 } from 'typeorm';
 import { VocabularyCard } from './vocabulary-card.entity';
+import { User } from './user.entity';
 
 @Entity('card_reviews')
-@Unique(['cardId'])
+@Unique(['userId', 'cardId'])
 export class CardReview {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ name: 'user_id', nullable: true })
+  userId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE', eager: false })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column({ name: 'card_id' })
   cardId: string;
@@ -16,6 +24,9 @@ export class CardReview {
   @ManyToOne(() => VocabularyCard, { onDelete: 'CASCADE', eager: false })
   @JoinColumn({ name: 'card_id' })
   card: VocabularyCard;
+
+  @Column({ name: 'is_flagged', default: false })
+  isFlagged: boolean;
 
   @Column({ default: 0 })
   interval: number;
@@ -41,3 +52,4 @@ export class CardReview {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
+

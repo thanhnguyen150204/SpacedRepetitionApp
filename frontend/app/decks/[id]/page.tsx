@@ -3,17 +3,25 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { getDeck, getCards, createCard, updateCard, deleteCard, updateDeck, deleteDeck, generateQuestions } from '@/lib/api';
-import { ArrowLeft, Plus, Trash2, Edit, Brain, BookOpen, HelpCircle, Sparkles, X, Edit3, Lock, Globe, Calendar } from 'lucide-react';
+import {
+  getDeck, getCards, createCard, updateCard, deleteCard, updateDeck, deleteDeck,
+  generateQuestions, toggleCardFlag, enrollDeckForReview, getUserCardStates
+} from '@/lib/api';
+import {
+  ArrowLeft, Plus, Trash2, Edit, Brain, BookOpen, HelpCircle, Sparkles, X,
+  Edit3, Lock, Globe, Calendar, Flag
+} from 'lucide-react';
 
 export default function DeckDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [deck, setDeck] = useState<any>(null);
   const [cards, setCards] = useState<any[]>([]);
+  const [userCardStates, setUserCardStates] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [showAddCard, setShowAddCard] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
   const [form, setForm] = useState({ term: '', definition: '', phonetic: '', partOfSpeech: '', exampleSentence: '' });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
@@ -30,15 +38,55 @@ export default function DeckDetailPage() {
 
   useEffect(() => {
     Promise.all([getDeck(id), getCards(id)])
-      .then(([d, c]) => {
+      .then(async ([d, c]) => {
         setDeck(d);
         setCards(c);
         if (d) setEditDeckForm({ name: d.name, description: d.description || '', isPublic: !!d.isPublic });
+        if (c && c.length > 0) {
+          try {
+            const states = await getUserCardStates(c.map((x: any) => x.id));
+            setUserCardStates(states || {});
+          } catch (err) {}
+        }
       })
       .finally(() => setLoading(false));
   }, [id]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  // ─── Flag & Enroll ──────────────────────────────────────
+  const handleToggleFlag = async (cardId: string) => {
+    try {
+      const currentFlagged = !!userCardStates[cardId]?.isFlagged;
+      const res = await toggleCardFlag(cardId, !currentFlagged);
+      setUserCardStates(prev => ({
+        ...prev,
+        [cardId]: {
+          isFlagged: res.isFlagged,
+          repetitions: res.repetitions,
+          nextReviewDate: res.nextReviewDate,
+        }
+      }));
+      showToast(res.isFlagged ? '🚩 Đã thêm từ vào hàng chờ ôn tập SM-2!' : '🏳️ Đã bỏ đánh dấu ôn tập!');
+    } catch (err) {
+      showToast('❌ Không thể cập nhật trạng thái ôn tập');
+    }
+  };
+
+  const handleEnrollAll = async () => {
+    if (cards.length === 0) return;
+    setEnrolling(true);
+    try {
+      const res = await enrollDeckForReview(id);
+      showToast(`🚩 Đã bật ôn tập SM-2 cho tất cả ${res.enrolledCount || cards.length} từ trong bộ này!`);
+      const states = await getUserCardStates(cards.map((x: any) => x.id));
+      setUserCardStates(states || {});
+    } catch (err) {
+      showToast('❌ Không thể bật ôn tập cho cả bộ!');
+    } finally {
+      setEnrolling(false);
+    }
+  };
 
   // ─── Deck CRUD ─────────────────────────────────────────
   const handleUpdateDeck = async (e: React.FormEvent) => {
@@ -178,6 +226,14 @@ export default function DeckDetailPage() {
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={handleEnrollAll}
+                disabled={enrolling || cards.length === 0}
+                className="btn btn-secondary btn-sm"
+                title="Bật ôn tập SM-2 cho tất cả các từ trong bộ này"
+              >
+                <Flag size={14} color="var(--rose)" /> {enrolling ? 'Đang bật...' : 'Bật ôn tập cả bộ'}
+              </button>
               <button onClick={handleGenerate} disabled={generating || cards.length < 2} className="btn btn-secondary btn-sm">
                 <Sparkles size={14} /> {generating ? 'Đang tạo...' : 'Tạo câu hỏi'}
               </button>
@@ -328,115 +384,130 @@ export default function DeckDetailPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {cards.map((card: any, idx: number) => (
-              <div key={card.id} className="card card-sm" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {editingCardId === card.id ? (
-                  /* Edit Card Inline Form */
-                  <div style={{ padding: 6 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--accent)' }}>
-                      📝 Chỉnh sửa từ vựng
-                    </div>
-                    <div className="grid-2" style={{ gap: 10, marginBottom: 10 }}>
-                      <div>
-                        <label className="input-label">Từ / Cụm từ *</label>
+            {cards.map((card: any, idx: number) => {
+              const isFlagged = !!userCardStates[card.id]?.isFlagged;
+              return (
+                <div key={card.id} className="card card-sm" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {editingCardId === card.id ? (
+                    /* Edit Card Inline Form */
+                    <div style={{ padding: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--accent)' }}>
+                        📝 Chỉnh sửa từ vựng
+                      </div>
+                      <div className="grid-2" style={{ gap: 10, marginBottom: 10 }}>
+                        <div>
+                          <label className="input-label">Từ / Cụm từ *</label>
+                          <input
+                            className="input"
+                            value={editCardForm.term}
+                            onChange={e => setEditCardForm({ ...editCardForm, term: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label">Nghĩa *</label>
+                          <input
+                            className="input"
+                            value={editCardForm.definition}
+                            onChange={e => setEditCardForm({ ...editCardForm, definition: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label">Phiên âm</label>
+                          <input
+                            className="input"
+                            value={editCardForm.phonetic}
+                            onChange={e => setEditCardForm({ ...editCardForm, phonetic: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label">Loại từ</label>
+                          <select
+                            className="input"
+                            value={editCardForm.partOfSpeech}
+                            onChange={e => setEditCardForm({ ...editCardForm, partOfSpeech: e.target.value })}
+                          >
+                            <option value="">Chọn loại từ</option>
+                            <option value="noun">Noun (danh từ)</option>
+                            <option value="verb">Verb (động từ)</option>
+                            <option value="adjective">Adjective (tính từ)</option>
+                            <option value="adverb">Adverb (trạng từ)</option>
+                            <option value="phrase">Phrase (cụm từ)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <label className="input-label">Câu ví dụ</label>
                         <input
                           className="input"
-                          value={editCardForm.term}
-                          onChange={e => setEditCardForm({ ...editCardForm, term: e.target.value })}
+                          value={editCardForm.exampleSentence}
+                          onChange={e => setEditCardForm({ ...editCardForm, exampleSentence: e.target.value })}
                         />
                       </div>
-                      <div>
-                        <label className="input-label">Nghĩa *</label>
-                        <input
-                          className="input"
-                          value={editCardForm.definition}
-                          onChange={e => setEditCardForm({ ...editCardForm, definition: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="input-label">Phiên âm</label>
-                        <input
-                          className="input"
-                          value={editCardForm.phonetic}
-                          onChange={e => setEditCardForm({ ...editCardForm, phonetic: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="input-label">Loại từ</label>
-                        <select
-                          className="input"
-                          value={editCardForm.partOfSpeech}
-                          onChange={e => setEditCardForm({ ...editCardForm, partOfSpeech: e.target.value })}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          disabled={savingCardEdit || !editCardForm.term || !editCardForm.definition}
+                          onClick={() => handleSaveCardEdit(card.id)}
                         >
-                          <option value="">Chọn loại từ</option>
-                          <option value="noun">Noun (danh từ)</option>
-                          <option value="verb">Verb (động từ)</option>
-                          <option value="adjective">Adjective (tính từ)</option>
-                          <option value="adverb">Adverb (trạng từ)</option>
-                          <option value="phrase">Phrase (cụm từ)</option>
-                        </select>
+                          {savingCardEdit ? 'Đang lưu...' : 'Cập nhật'}
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditingCardId(null)}>
+                          Hủy
+                        </button>
                       </div>
                     </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <label className="input-label">Câu ví dụ</label>
-                      <input
-                        className="input"
-                        value={editCardForm.exampleSentence}
-                        onChange={e => setEditCardForm({ ...editCardForm, exampleSentence: e.target.value })}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={savingCardEdit || !editCardForm.term || !editCardForm.definition}
-                        onClick={() => handleSaveCardEdit(card.id)}
-                      >
-                        {savingCardEdit ? 'Đang lưu...' : 'Cập nhật'}
-                      </button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingCardId(null)}>
-                        Hủy
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* Display Card View */
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)', width: 28, flexShrink: 0, textAlign: 'right' }}>
-                      {idx + 1}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                        <span style={{ fontWeight: 700, fontSize: 15 }}>{card.term}</span>
-                        {card.phonetic && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{card.phonetic}</span>}
-                        {card.partOfSpeech && <span className="badge badge-purple" style={{ fontSize: 10 }}>{card.partOfSpeech}</span>}
+                  ) : (
+                    /* Display Card View */
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', width: 28, flexShrink: 0, textAlign: 'right' }}>
+                        {idx + 1}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                          <span style={{ fontWeight: 700, fontSize: 15 }}>{card.term}</span>
+                          {card.phonetic && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{card.phonetic}</span>}
+                          {card.partOfSpeech && <span className="badge badge-purple" style={{ fontSize: 10 }}>{card.partOfSpeech}</span>}
+                          {isFlagged && (
+                            <span className="badge badge-rose" style={{ fontSize: 10, padding: '2px 8px' }}>
+                              🚩 Đã bật ôn tập
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{card.definition}</span>
+                        {card.exampleSentence && (
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
+                            "{card.exampleSentence}"
+                          </p>
+                        )}
                       </div>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{card.definition}</span>
-                      {card.exampleSentence && (
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
-                          "{card.exampleSentence}"
-                        </p>
-                      )}
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className={`btn btn-sm btn-icon ${isFlagged ? 'btn-danger' : 'btn-secondary'}`}
+                          title={isFlagged ? 'Bỏ đánh dấu ôn tập' : 'Đánh dấu đưa vào hàng chờ Ôn tập hôm nay'}
+                          onClick={() => handleToggleFlag(card.id)}
+                        >
+                          <Flag size={14} fill={isFlagged ? 'currentColor' : 'none'} />
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm btn-icon"
+                          title="Sửa từ vựng"
+                          onClick={() => handleStartEditCard(card)}
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm btn-icon"
+                          title="Xóa từ vựng"
+                          onClick={() => handleDeleteCard(card.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className="btn btn-secondary btn-sm btn-icon"
-                        title="Sửa từ vựng"
-                        onClick={() => handleStartEditCard(card)}
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm btn-icon"
-                        title="Xóa từ vựng"
-                        onClick={() => handleDeleteCard(card.id)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

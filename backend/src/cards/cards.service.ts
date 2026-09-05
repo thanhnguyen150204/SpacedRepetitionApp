@@ -33,16 +33,6 @@ export class CardsService {
     const card = this.cardsRepository.create({ ...dto, deckId, source });
     const saved = await this.cardsRepository.save(card);
 
-    // Initialize SM-2 state for the card
-    const review = this.reviewRepository.create({
-      cardId: saved.id,
-      interval: 0,
-      repetitions: 0,
-      easinessFactor: 2.5,
-      nextReviewDate: new Date(),
-    });
-    await this.reviewRepository.save(review);
-
     await this.decksService.updateCardCount(deckId);
     return saved;
   }

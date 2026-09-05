@@ -10,14 +10,15 @@ export class SessionsService {
     private sessionRepo: Repository<StudySession>,
   ) {}
 
-  async start(deckId: string | null, sessionType: SessionType): Promise<StudySession> {
+  async start(deckId: string | null, sessionType: SessionType, userId?: string): Promise<StudySession> {
     const validDeckId = deckId && deckId.trim() !== '' ? deckId : null;
-    const session = this.sessionRepo.create({ deckId: validDeckId, sessionType });
+    const session = this.sessionRepo.create({ deckId: validDeckId, sessionType, userId });
     return this.sessionRepo.save(session);
   }
 
   async end(id: string, cardsCorrect: number, cardsWrong: number): Promise<StudySession> {
     const session = await this.sessionRepo.findOne({ where: { id } });
+    if (!session) return null;
     session.cardsCorrect = cardsCorrect;
     session.cardsWrong = cardsWrong;
     session.cardsTotal = cardsCorrect + cardsWrong;
@@ -28,7 +29,10 @@ export class SessionsService {
     return this.sessionRepo.save(session);
   }
 
-  async findAll(): Promise<StudySession[]> {
+  async findAll(userId?: string): Promise<StudySession[]> {
+    if (userId) {
+      return this.sessionRepo.find({ where: { userId }, order: { startedAt: 'DESC' }, take: 50 });
+    }
     return this.sessionRepo.find({ order: { startedAt: 'DESC' }, take: 50 });
   }
 }
