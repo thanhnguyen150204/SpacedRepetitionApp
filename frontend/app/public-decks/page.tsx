@@ -95,7 +95,12 @@ function PublicDecksContent() {
         ) : (
           <div className="grid-3" style={{ gap: 20 }}>
             {decks.map((deck: any) => (
-              <div key={deck.id} className="card deck-card" style={{ display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'space-between' }}>
+              <div
+                key={deck.id}
+                className="card deck-card"
+                style={{ display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'space-between', cursor: 'pointer' }}
+                onClick={() => router.push(`/study/flashcard/${deck.id}`)}
+              >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <span className="badge badge-accent"><BookOpen size={12} /> {deck.totalCards} từ vựng</span>
@@ -116,20 +121,20 @@ function PublicDecksContent() {
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, padding: '6px 10px', background: 'var(--bg-primary)', borderRadius: 6 }}>
-                    <UserIcon size={13} />
-                    <span>Tác giả: <strong>{deck.user?.name || 'Cộng đồng'}</strong></span>
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                      <UserIcon size={13} />
+                      <span><strong>{deck.user?.name || 'Cộng đồng'}</strong></span>
+                    </div>
 
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Link href={`/study/flashcard/${deck.id}`} className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-                      <BookOpen size={14} /> Học ngay
-                    </Link>
                     <button
                       className="btn btn-secondary btn-sm"
                       style={{ justifyContent: 'center' }}
                       disabled={cloningId === deck.id}
-                      onClick={() => handleCloneDeck(deck.id, deck.name)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloneDeck(deck.id, deck.name);
+                      }}
                       title="Lưu bản sao về danh sách bộ từ của bạn"
                     >
                       <Copy size={14} />
