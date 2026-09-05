@@ -9,7 +9,7 @@ import {
 } from '@/lib/api';
 import {
   ArrowLeft, Plus, Trash2, Edit, Brain, BookOpen, HelpCircle, Sparkles, X,
-  Edit3, Lock, Globe, Calendar, Flag
+  Edit3, Lock, Globe, Calendar, Flag, Zap
 } from 'lucide-react';
 
 export default function DeckDetailPage() {
