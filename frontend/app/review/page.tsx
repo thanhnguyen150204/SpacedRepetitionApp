@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { getDueCards, submitReview, startSession, endSession } from '@/lib/api';
 import { ArrowLeft, Brain, CheckCircle, XCircle, ChevronRight, RotateCcw, Volume2, Sparkles, Shuffle } from 'lucide-react';
+import Confetti from '@/components/Confetti';
 
 function ReviewContent() {
   const searchParams = useSearchParams();
@@ -164,7 +165,8 @@ function ReviewContent() {
   );
 
   if (done) return (
-    <div className="app-layout">
+    <div className="app-layout" style={{ position: 'relative' }}>
+      <Confetti />
       <Sidebar dueCount={0} />
       <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="card animate-up" style={{ maxWidth: 460, width: '100%', textAlign: 'center', padding: 40 }}>

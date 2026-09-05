@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getQuestions, generateQuestions, startSession, endSession, submitReview } from '@/lib/api';
 import { ArrowLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import Confetti from '@/components/Confetti';
 
 function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5);
@@ -83,8 +84,9 @@ export default function QuizPage() {
   );
 
   if (done) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}>
-      <div className="card animate-up" style={{ maxWidth: 400, width: '100%', textAlign: 'center', padding: 40 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)', position: 'relative' }}>
+      <Confetti />
+      <div className="card animate-up" style={{ maxWidth: 400, width: '100%', textAlign: 'center', padding: 40, zIndex: 10 }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>{correct / questions.length >= 0.8 ? '🌟' : '📖'}</div>
         <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Kết quả Quiz</h2>
         <div style={{ fontSize: 48, fontWeight: 900, color: correct / questions.length >= 0.8 ? 'var(--green)' : 'var(--amber)', marginBottom: 8 }}>

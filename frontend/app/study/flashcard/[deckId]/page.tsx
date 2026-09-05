@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCards, startSession, endSession, submitReview } from '@/lib/api';
 import { ArrowLeft, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import Confetti from '@/components/Confetti';
 
 const RATING_BUTTONS = [
   { label: 'Again', key: 'again', quality: 0, className: 'rating-again', days: 'lại ngay' },
@@ -81,8 +82,9 @@ export default function FlashcardPage() {
   );
 
   if (done) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}>
-      <div className="card animate-up" style={{ maxWidth: 400, width: '100%', textAlign: 'center', padding: 40 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)', position: 'relative' }}>
+      <Confetti />
+      <div className="card animate-up" style={{ maxWidth: 400, width: '100%', textAlign: 'center', padding: 40, zIndex: 10 }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
         <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Hoàn thành!</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Bạn đã học xong {cards.length} từ</p>
