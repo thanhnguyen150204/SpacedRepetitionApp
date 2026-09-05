@@ -203,7 +203,7 @@ function PublicDecksContent() {
                     <BookOpen size={22} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>🎴 Thẻ ghi nhớ Flashcard</div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>Thẻ ghi nhớ Flashcard</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Luyện lật thẻ tự do, xem nghĩa & câu ví dụ</div>
                   </div>
                 </Link>
@@ -220,7 +220,7 @@ function PublicDecksContent() {
                     <HelpCircle size={22} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>❓ Trắc nghiệm Quiz</div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>Trắc nghiệm Quiz</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Luyện trắc nghiệm 4 đáp án chọn nghĩa đúng</div>
                   </div>
                 </Link>
@@ -238,7 +238,7 @@ function PublicDecksContent() {
                     <Zap size={22} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--amber)' }}>⏱️ Bài Test Đếm Ngược (15s/câu)</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--amber)' }}>Bài Test Đếm Ngược (15s/câu)</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Thử thách bấm giờ với thanh thời gian đếm ngược sinh động</div>
                   </div>
                 </Link>
