@@ -237,6 +237,9 @@ export default function DeckDetailPage() {
               <button onClick={handleGenerate} disabled={generating || cards.length < 2} className="btn btn-secondary btn-sm">
                 <Sparkles size={14} /> {generating ? 'Đang tạo...' : 'Tạo câu hỏi'}
               </button>
+              <Link href={`/study/test/${id}`} className="btn btn-secondary btn-sm">
+                <Zap size={14} color="var(--amber)" /> Bài Test
+              </Link>
               <Link href={`/study/quiz/${id}`} className="btn btn-secondary btn-sm">
                 <HelpCircle size={14} /> Quiz
               </Link>

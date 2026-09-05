@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { getPublicDecks, cloneDeck } from '@/lib/api';
-import { BookOpen, Search, Globe, Copy, ChevronLeft, ChevronRight, User as UserIcon, Sparkles } from 'lucide-react';
+import { BookOpen, Search, Globe, Copy, ChevronLeft, ChevronRight, User as UserIcon, HelpCircle, Zap, X } from 'lucide-react';
 
 function PublicDecksContent() {
   const router = useRouter();
@@ -17,6 +17,7 @@ function PublicDecksContent() {
   const [total, setTotal] = useState(0);
   const [cloningId, setCloningId] = useState<string | null>(null);
   const [toast, setToast] = useState('');
+  const [selectedDeckModal, setSelectedDeckModal] = useState<any | null>(null);
 
   const fetchPublicDecks = (p: number, s: string) => {
     setLoading(true);
@@ -45,6 +46,7 @@ function PublicDecksContent() {
     try {
       const cloned = await cloneDeck(deckId);
       showToast(`✅ Đã sao chép "${deckName}" về Bộ từ của bạn!`);
+      setSelectedDeckModal(null);
       setTimeout(() => router.push('/decks'), 1000);
     } catch (err) {
       showToast('❌ Không thể sao chép bộ từ. Vui lòng thử lại!');
@@ -99,7 +101,7 @@ function PublicDecksContent() {
                 key={deck.id}
                 className="card deck-card"
                 style={{ display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'space-between', cursor: 'pointer' }}
-                onClick={() => router.push(`/study/flashcard/${deck.id}`)}
+                onClick={() => setSelectedDeckModal(deck)}
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -124,7 +126,7 @@ function PublicDecksContent() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
                       <UserIcon size={13} />
-                      <span><strong>{deck.user?.name || 'Cộng đồng'}</strong></span>
+                      <span>Tác giả: <strong>{deck.user?.name || 'Cộng đồng'}</strong></span>
                     </div>
 
                     <button
@@ -169,6 +171,89 @@ function PublicDecksContent() {
             >
               Trang sau <ChevronRight size={16} />
             </button>
+          </div>
+        )}
+
+        {/* Study Options Modal */}
+        {selectedDeckModal && (
+          <div className="modal-overlay" onClick={() => setSelectedDeckModal(null)}>
+            <div className="modal animate-up" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+              <div className="modal-header">
+                <div>
+                  <div className="modal-title">{selectedDeckModal.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                    Chọn chế độ học hoặc thử thách cho bộ từ mẫu này ({selectedDeckModal.totalCards} từ)
+                  </div>
+                </div>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setSelectedDeckModal(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Link
+                  href={`/study/flashcard/${selectedDeckModal.id}`}
+                  className="card card-sm"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', color: 'inherit',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)', transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0 }}>
+                    <BookOpen size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>🎴 Thẻ ghi nhớ Flashcard</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Luyện lật thẻ tự do, xem nghĩa & câu ví dụ</div>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/study/quiz/${selectedDeckModal.id}`}
+                  className="card card-sm"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', color: 'inherit',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)', transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(168,85,247,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--purple)', flexShrink: 0 }}>
+                    <HelpCircle size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>❓ Trắc nghiệm Quiz</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Luyện trắc nghiệm 4 đáp án chọn nghĩa đúng</div>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/study/test/${selectedDeckModal.id}`}
+                  className="card card-sm"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', color: 'inherit',
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(225,29,72,0.08))',
+                    border: '1px solid rgba(245,158,11,0.3)', transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--amber)', flexShrink: 0 }}>
+                    <Zap size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--amber)' }}>⏱️ Bài Test Đếm Ngược (15s/câu)</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Thử thách bấm giờ với thanh thời gian đếm ngược sinh động</div>
+                  </div>
+                </Link>
+
+                <button
+                  className="btn btn-secondary"
+                  style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}
+                  disabled={cloningId === selectedDeckModal.id}
+                  onClick={() => handleCloneDeck(selectedDeckModal.id, selectedDeckModal.name)}
+                >
+                  <Copy size={16} />
+                  {cloningId === selectedDeckModal.id ? 'Đang lưu...' : 'Sao chép về Bộ từ của tôi'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
