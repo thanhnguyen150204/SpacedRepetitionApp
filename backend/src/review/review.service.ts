@@ -16,7 +16,7 @@ export class ReviewService {
     private reviewLogRepo: Repository<ReviewLog>,
     @InjectRepository(VocabularyCard)
     private cardRepo: Repository<VocabularyCard>,
-  ) {}
+  ) { }
 
   /** Get all cards due for review today for a specific user */
   async getDueCards(userId: string, deckId?: string): Promise<any[]> {
@@ -45,18 +45,34 @@ export class ReviewService {
     const allCards = await this.cardRepo.find({ take: 200 });
 
     return reviews.map((r) => {
-      const distractors = allCards
-        .filter((c) => c.id !== r.cardId && c.definition !== r.card.definition)
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 3)
-        .map((c) => c.definition);
+      // Randomly pick question format: 50% English -> Vietnamese, 50% Vietnamese -> English
+      const isEnToVi = Math.random() < 0.5;
+      const questionType = isEnToVi ? 'en_to_vi' : 'vi_to_en';
+      const correctAnswer = isEnToVi ? r.card.definition : r.card.term;
+
+      let distractors: string[] = [];
+      if (isEnToVi) {
+        distractors = allCards
+          .filter((c) => c.id !== r.cardId && c.definition !== r.card.definition)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3)
+          .map((c) => c.definition);
+      } else {
+        distractors = allCards
+          .filter((c) => c.id !== r.cardId && c.term.toLowerCase() !== r.card.term.toLowerCase())
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3)
+          .map((c) => c.term);
+      }
 
       // Shuffle correct answer with distractors
-      const options = [r.card.definition, ...distractors].sort(() => Math.random() - 0.5);
+      const options = [correctAnswer, ...distractors].sort(() => Math.random() - 0.5);
 
       return {
         reviewId: r.id,
         card: r.card,
+        questionType,
+        correctAnswer,
         interval: r.interval,
         repetitions: r.repetitions,
         easinessFactor: r.easinessFactor,

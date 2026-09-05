@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { getDueCards, submitReview, startSession, endSession } from '@/lib/api';
-import { ArrowLeft, Brain, CheckCircle, XCircle, ChevronRight, RotateCcw, Volume2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Brain, CheckCircle, XCircle, ChevronRight, RotateCcw, Volume2, Sparkles, Shuffle } from 'lucide-react';
 
 function ReviewContent() {
   const searchParams = useSearchParams();
@@ -45,6 +45,8 @@ function ReviewContent() {
   const currentItem = cards[index];
   const currentCard = currentItem?.card;
   const options = currentItem?.options || [];
+  const questionType = currentItem?.questionType || 'en_to_vi';
+  const targetAnswer = currentItem?.correctAnswer || (questionType === 'en_to_vi' ? currentCard?.definition : currentCard?.term);
 
   const handleSelectOption = useCallback(async (option: string) => {
     if (isAnswered || !currentCard) return;
@@ -52,7 +54,7 @@ function ReviewContent() {
     setSelectedOpt(option);
     setIsAnswered(true);
 
-    const isRight = option === currentCard.definition;
+    const isRight = option.trim().toLowerCase() === targetAnswer.trim().toLowerCase();
     const responseTimeMs = Date.now() - startTime;
 
     if (isRight) {
@@ -96,7 +98,7 @@ function ReviewContent() {
       // Re-queue card to end of today's session
       setCards(prev => [...prev, currentItem]);
     }
-  }, [isAnswered, currentCard, startTime, correct, wrong, currentItem, session, index, cards.length]);
+  }, [isAnswered, currentCard, targetAnswer, startTime, correct, wrong, currentItem, session, index, cards.length]);
 
   const handleNextAfterWrong = async () => {
     if (index + 1 >= cards.length) {
@@ -115,7 +117,7 @@ function ReviewContent() {
     const handler = (e: KeyboardEvent) => {
       if (isAnswered) {
         if (e.code === 'Enter' || e.code === 'Space') {
-          if (selectedOpt !== currentCard?.definition) {
+          if (selectedOpt?.trim().toLowerCase() !== targetAnswer?.trim().toLowerCase()) {
             handleNextAfterWrong();
           }
         }
@@ -130,7 +132,7 @@ function ReviewContent() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isAnswered, options, selectedOpt, currentCard, handleSelectOption]);
+  }, [isAnswered, options, selectedOpt, targetAnswer, handleSelectOption]);
 
   if (loading) return (
     <div className="app-layout">
@@ -207,7 +209,10 @@ function ReviewContent() {
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <Brain size={18} color="var(--accent-light)" />
-                <span style={{ fontWeight: 700 }}>Ôn tập 4 Đáp án (Spaced Repetition)</span>
+                <span style={{ fontWeight: 700 }}>Ôn tập Spaced Repetition</span>
+                <span className="badge badge-purple" style={{ gap: 4 }}>
+                  <Shuffle size={12} /> Đảo chiều ngẫu nhiên
+                </span>
                 <span className="badge badge-accent">{index + 1} / {cards.length}</span>
               </div>
               <div className="progress-bar">
@@ -220,29 +225,44 @@ function ReviewContent() {
             </div>
           </div>
 
-          {/* Question Card */}
+          {/* Question Card (Dynamic EN->VI or VI->EN) */}
           <div className="card" style={{ marginBottom: 24, padding: 36, textAlign: 'center', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
               {currentCard?.partOfSpeech && (
                 <span className="badge badge-purple">{currentCard.partOfSpeech}</span>
               )}
-              {currentCard?.phonetic && (
+              {questionType === 'en_to_vi' && currentCard?.phonetic && (
                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{currentCard.phonetic}</span>
               )}
             </div>
 
-            <h1 style={{ fontSize: 36, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
-              {currentCard?.term}
-            </h1>
-
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Hãy chọn đáp án mang nghĩa chính xác của từ vựng này:
-            </p>
+            {questionType === 'en_to_vi' ? (
+              <>
+                <h1 style={{ fontSize: 36, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
+                  {currentCard?.term}
+                </h1>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                  Hãy chọn nghĩa Tiếng Việt chính xác của từ vựng này:
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10, lineHeight: 1.4 }}>
+                  "{currentCard?.definition}"
+                </h1>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                  Từ Tiếng Anh tương ứng nào mang nghĩa trên?
+                </p>
+              </>
+            )}
           </div>
 
           {/* 4 Choices Grid */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
             {options.map((opt: string, i: number) => {
+              const isTargetCard = opt.trim().toLowerCase() === targetAnswer.trim().toLowerCase();
+              const isSelected = opt === selectedOpt;
+
               let btnStyle = {
                 width: '100%',
                 padding: '16px 20px',
@@ -262,12 +282,12 @@ function ReviewContent() {
               };
 
               if (isAnswered) {
-                if (opt === currentCard?.definition) {
+                if (isTargetCard) {
                   btnStyle.border = '1.5px solid var(--green)';
                   btnStyle.background = 'rgba(5,150,105,0.1)';
                   btnStyle.color = 'var(--green)';
                   btnStyle.fontWeight = 700;
-                } else if (opt === selectedOpt) {
+                } else if (isSelected) {
                   btnStyle.border = '1.5px solid var(--rose)';
                   btnStyle.background = 'rgba(225,29,72,0.1)';
                   btnStyle.color = 'var(--rose)';
@@ -286,23 +306,23 @@ function ReviewContent() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{
-                      width: 26, height: 26, borderRadius: '50%',
-                      background: isAnswered && opt === currentCard?.definition
-                        ? 'var(--green)' : isAnswered && opt === selectedOpt
+                      width: 28, height: 28, borderRadius: '50%',
+                      background: isAnswered && isTargetCard
+                        ? 'var(--green)' : isAnswered && isSelected
                         ? 'var(--rose)' : 'var(--bg-card-hover)',
-                      color: isAnswered && (opt === currentCard?.definition || opt === selectedOpt) ? '#fff' : 'var(--text-muted)',
+                      color: isAnswered && (isTargetCard || isSelected) ? '#fff' : 'var(--text-muted)',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12, fontWeight: 700, flexShrink: 0
+                      fontSize: 13, fontWeight: 700, flexShrink: 0
                     }}>
                       {String.fromCharCode(65 + i)}
                     </span>
                     <span>{opt}</span>
                   </div>
 
-                  {isAnswered && opt === currentCard?.definition && (
+                  {isAnswered && isTargetCard && (
                     <CheckCircle size={20} color="var(--green)" />
                   )}
-                  {isAnswered && opt === selectedOpt && opt !== currentCard?.definition && (
+                  {isAnswered && isSelected && !isTargetCard && (
                     <XCircle size={20} color="var(--rose)" />
                   )}
                 </button>
@@ -311,7 +331,7 @@ function ReviewContent() {
           </div>
 
           {/* Feedback & Advance Banner when wrong */}
-          {isAnswered && selectedOpt !== currentCard?.definition && (
+          {isAnswered && selectedOpt?.trim().toLowerCase() !== targetAnswer?.trim().toLowerCase() && (
             <div className="card animate-up" style={{
               padding: 20,
               background: 'rgba(225,29,72,0.06)',
@@ -323,9 +343,9 @@ function ReviewContent() {
                   ✗ Chưa chính xác!
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                  Từ <strong>"{currentCard?.term}"</strong> nghĩa là: <strong style={{ color: 'var(--green)' }}>"{currentCard?.definition}"</strong>.
+                  Từ: <strong>"{currentCard?.term}"</strong> ➔ Nghĩa: <strong style={{ color: 'var(--green)' }}>"{currentCard?.definition}"</strong>.
                   <br />
-                  Từ này đã được đánh dấu lại ngay sau 1 ngày và sẽ xuất hiện lại ở cuối phiên hôm nay.
+                  Từ này đã được đánh dấu nhắc lại sau 1 ngày và sẽ xuất hiện lại ở cuối phiên hôm nay.
                 </div>
               </div>
               <button className="btn btn-primary" onClick={handleNextAfterWrong}>
