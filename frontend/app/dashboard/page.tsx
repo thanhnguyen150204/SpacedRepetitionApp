@@ -59,34 +59,46 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Due Cards Alert */}
+        {/* Due Cards Alert Card */}
         {dueCards.length > 0 && (
-          <div className="card animate-up" style={{
-            marginBottom: 32, padding: '20px 24px',
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.1))',
-            border: '1px solid rgba(99,102,241,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link
+            href="/review"
+            className="card animate-up"
+            style={{
+              marginBottom: 32, padding: '22px 28px',
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.08))',
+              border: '1.5px solid rgba(99,102,241,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              textDecoration: 'none', color: 'inherit', cursor: 'pointer',
+              transition: 'all 0.25s ease',
+              boxShadow: '0 8px 24px rgba(79,70,229,0.12)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{
-                width: 48, height: 48, borderRadius: 12,
-                background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 52, height: 52, borderRadius: 14,
+                background: 'var(--accent-glow)', border: '1px solid rgba(99,102,241,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
               }}>
-                <Brain size={24} color="var(--accent-light)" />
+                <Brain size={26} color="var(--accent-light)" />
               </div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>
-                  Bạn có <span style={{ color: 'var(--accent-light)' }}>{dueCards.length} từ</span> cần ôn hôm nay!
+                <div style={{ fontWeight: 800, fontSize: 17, color: 'var(--text-primary)' }}>
+                  Bạn có <span style={{ color: 'var(--accent-light)' }}>{dueCards.length} từ</span> cần ôn tập hôm nay!
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  Đừng để gián đoạn streak của bạn 🔥
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 3 }}>
+                  Nhấn vào thẻ này để bắt đầu phiên ôn trắc nghiệm Spaced Repetition 🔥
                 </div>
               </div>
             </div>
-            <Link href="/review" className="btn btn-primary">
-              Ôn ngay <ChevronRight size={16} />
-            </Link>
-          </div>
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'var(--accent-glow)', color: 'var(--accent-light)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              <ChevronRight size={20} />
+            </div>
+          </Link>
         )}
 
         {/* My Decks */}
