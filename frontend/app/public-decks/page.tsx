@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { getPublicDecks, cloneDeck } from '@/lib/api';
-import { BookOpen, Search, Globe, Copy, ChevronLeft, ChevronRight, User as UserIcon, HelpCircle, Zap, X, Keyboard } from 'lucide-react';
+import { BookOpen, Search, Globe, Copy, ChevronLeft, ChevronRight, User as UserIcon, HelpCircle, Zap, X, Keyboard, Bot } from 'lucide-react';
 
 function PublicDecksContent() {
   const router = useRouter();
@@ -191,6 +191,23 @@ function PublicDecksContent() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Link
+                  href={`/study/ai-sentence/${selectedDeckModal.id}`}
+                  className="card card-sm"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', color: 'inherit',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)', transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(147,51,234,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--purple)', flexShrink: 0 }}>
+                    <Bot size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>Luyện câu với AI</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>AI tự tạo câu mẫu & AI Writing Coach chấm bài tự đặt câu</div>
+                  </div>
+                </Link>
+
                 <Link
                   href={`/study/typing/${selectedDeckModal.id}`}
                   className="card card-sm"

@@ -10,6 +10,7 @@ export enum SessionType {
   QUIZ = 'quiz',
   SPACED_REVIEW = 'spaced_review',
   TYPING = 'typing',
+  AI_SENTENCE = 'ai_sentence',
 }
 
 @Entity('study_sessions')

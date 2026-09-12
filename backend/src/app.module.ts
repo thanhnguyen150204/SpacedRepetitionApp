@@ -17,6 +17,7 @@ import { ReviewModule } from './review/review.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { QuestionsModule } from './questions/questions.module';
 import { OcrModule } from './ocr/ocr.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { OcrModule } from './ocr/ocr.module';
     SessionsModule,
     QuestionsModule,
     OcrModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

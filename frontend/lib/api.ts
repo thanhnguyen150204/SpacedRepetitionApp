@@ -73,4 +73,11 @@ export const uploadOcr = (file: File) => {
   return api.post('/ocr/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
 };
 
+// ─── AI Sentence Practice ────────────────────────────────
+export const generateAiSentence = (data: { term: string; definition: string; partOfSpeech?: string; existingExample?: string }) =>
+  api.post('/ai/generate-sentence', data).then(r => r.data);
+
+export const evaluateAiSentence = (data: { term: string; definition: string; userSentence: string }) =>
+  api.post('/ai/evaluate-sentence', data).then(r => r.data);
+
 export default api;
