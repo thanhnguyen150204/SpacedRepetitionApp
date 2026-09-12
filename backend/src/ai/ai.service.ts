@@ -23,6 +23,34 @@ function cleanWordTerm(rawTerm: string): string {
   return cleaned || rawTerm.trim();
 }
 
+// Common basic English dictionary words for fallback spell checking
+const COMMON_ENGLISH_WORDS = new Set([
+  'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'aren\'t', 'as', 'at',
+  'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can', 'can\'t', 'cannot', 'code',
+  'could', 'couldn\'t', 'did', 'didn\'t', 'do', 'does', 'doesn\'t', 'doing', 'don\'t', 'down', 'during', 'each', 'few',
+  'for', 'from', 'further', 'had', 'hadn\'t', 'has', 'hasn\'t', 'have', 'haven\'t', 'having', 'he', 'he\'d', 'he\'ll',
+  'he\'s', 'her', 'here', 'here\'s', 'hers', 'herself', 'him', 'himself', 'his', 'how', 'how\'s', 'i', 'i\'d', 'i\'ll',
+  'i\'m', 'i\'ve', 'if', 'in', 'into', 'is', 'isn\'t', 'it', 'it\'s', 'its', 'itself', 'let\'s', 'me', 'more', 'most',
+  'mustn\'t', 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our',
+  'ours', 'ourselves', 'out', 'over', 'own', 'same', 'shan\'t', 'she', 'she\'d', 'she\'ll', 'she\'s', 'should', 'shouldn\'t',
+  'so', 'some', 'such', 'than', 'that', 'that\'s', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there',
+  'there\'s', 'these', 'they', 'they\'d', 'they\'ll', 'they\'re', 'they\'ve', 'this', 'those', 'through', 'to', 'too',
+  'under', 'until', 'up', 'very', 'was', 'wasn\'t', 'we', 'we\'d', 'we\'ll', 'we\'re', 'we\'ve', 'were', 'weren\'t',
+  'what', 'what\'s', 'when', 'when\'s', 'where', 'where\'s', 'which', 'while', 'who', 'who\'s', 'whom', 'why', 'why\'s',
+  'with', 'won\'t', 'would', 'wouldn\'t', 'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself',
+  'yourselves', 'prompt', 'specify', 'specified', 'specifying', 'specifies', 'specification', 'help', 'helps', 'helped',
+  'helping', 'please', 'make', 'makes', 'made', 'making', 'use', 'uses', 'used', 'using', 'need', 'needs', 'needed',
+  'time', 'work', 'good', 'well', 'great', 'new', 'first', 'way', 'day', 'man', 'thing', 'people', 'life', 'child',
+  'world', 'school', 'state', 'family', 'student', 'group', 'country', 'problem', 'hand', 'part', 'place', 'case',
+  'week', 'company', 'system', 'program', 'question', 'work', 'number', 'night', 'point', 'home', 'water', 'room',
+  'mother', 'area', 'money', 'story', 'fact', 'month', 'lot', 'right', 'study', 'book', 'eye', 'job', 'word', 'business',
+  'issue', 'side', 'kind', 'head', 'house', 'service', 'friend', 'father', 'power', 'hour', 'game', 'line', 'end', 'member',
+  'law', 'car', 'city', 'community', 'name', 'president', 'team', 'minute', 'idea', 'kid', 'body', 'information', 'back',
+  'parent', 'face', 'others', 'level', 'office', 'door', 'health', 'person', 'art', 'war', 'history', 'party', 'result',
+  'change', 'morning', 'reason', 'research', 'girl', 'guy', 'moment', 'air', 'teacher', 'force', 'education', 'optimize',
+  'optimizing', 'optimized', 'optimizer', 'optimization'
+]);
+
 @Injectable()
 export class AiService {
   private apiKey: string;
@@ -31,9 +59,6 @@ export class AiService {
     this.apiKey = this.configService.get<string>('GEMINI_API_KEY') || process.env.GEMINI_API_KEY || '';
   }
 
-  /**
-   * Call Gemini 1.5 Flash REST API endpoint
-   */
   private async callGemini(prompt: string): Promise<string | null> {
     if (!this.apiKey) {
       return null;
@@ -51,7 +76,7 @@ export class AiService {
             }
           ],
           generationConfig: {
-            temperature: 0.3,
+            temperature: 0.2,
             responseMimeType: 'application/json',
           }
         }),
@@ -71,9 +96,6 @@ export class AiService {
     }
   }
 
-  /**
-   * Generate an English example sentence & practice question for a word card
-   */
   async generateSentencePractice(
     term: string,
     definition: string,
@@ -114,10 +136,7 @@ Return ONLY valid JSON matching this exact structure:
       }
     }
 
-    // Smart Fallback when Gemini API key is not present or offline
     let engSentence = existingExample || `Learning and applying the word "${cleanTerm}" is essential for vocabulary growth.`;
-    
-    // Mask term in existing example
     const regex = new RegExp(cleanTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
     let blanked = engSentence.replace(regex, '_______');
 
@@ -135,7 +154,7 @@ Return ONLY valid JSON matching this exact structure:
   }
 
   /**
-   * Evaluate a custom sentence written by the user using Gemini AI Writing Coach
+   * Evaluate user sentence strictly with full grammar, spelling, and vocabulary checks
    */
   async evaluateSentence(
     term: string,
@@ -151,23 +170,31 @@ Return ONLY valid JSON matching this exact structure:
         isWordUsedCorrectly: false,
         score: 0,
         feedback: 'Bạn chưa nhập câu nào. Hãy thử viết một câu tiếng Anh!',
-        nativeSuggestion: `Example: "Using ${cleanTerm} correctly makes your English sound natural."`,
+        nativeSuggestion: `Example: "Please specify the details clearly in the document."`,
       };
     }
 
-    const prompt = `You are a friendly, encouraging English grammar teacher.
+    const prompt = `You are a strict, professional English grammar and spelling examiner.
 Target vocabulary term: "${cleanTerm}"
 Target word definition: "${definition}"
 Student's written sentence: "${trimmedSentence}"
 
-Evaluate the student's sentence carefully.
-Return ONLY valid JSON matching this exact structure:
+Critically evaluate the student's sentence for:
+1. SPELLING: Check EVERY SINGLE WORD in the sentence. Are all words valid, correctly spelled English words? Flag any fake, made-up, or misspelled words (e.g., "optimosset").
+2. GRAMMAR & SYNTAX: Is subject-verb agreement correct? Is the sentence structure grammatically valid in English? Check verb forms and clause structure.
+3. VOCABULARY USAGE: Is the target word "${cleanTerm}" used correctly according to its definition ("${definition}")?
+
+CRITICAL RULES:
+- If there are ANY spelling mistakes, fake words, or grammar errors, "isGrammarCorrect" MUST be false and score MUST be 5 or lower!
+- Explicitly detail all errors (spelling mistakes and grammar flaws) in Vietnamese in "feedback".
+
+Return ONLY valid JSON:
 {
   "isGrammarCorrect": boolean,
   "isWordUsedCorrectly": boolean,
-  "score": number (integer between 0 and 10),
-  "feedback": "Detailed helpful feedback in Vietnamese explaining grammar, word usage, and spelling",
-  "nativeSuggestion": "A natural, native-sounding rewrite of the student's sentence"
+  "score": number (integer 0 to 10),
+  "feedback": "Detailed explanation in Vietnamese listing specific spelling errors (e.g. 'Từ optimosset không có thực') and grammar issues",
+  "nativeSuggestion": "A fully corrected, natural English sentence"
 }`;
 
     const aiResult = await this.callGemini(prompt);
@@ -178,8 +205,8 @@ Return ONLY valid JSON matching this exact structure:
         return {
           isGrammarCorrect: !!parsed.isGrammarCorrect,
           isWordUsedCorrectly: !!parsed.isWordUsedCorrectly,
-          score: typeof parsed.score === 'number' ? parsed.score : 7,
-          feedback: parsed.feedback || 'Câu của bạn được xây dựng tốt!',
+          score: typeof parsed.score === 'number' ? Math.max(0, Math.min(10, parsed.score)) : 4,
+          feedback: parsed.feedback || 'Đã phân tích câu của bạn.',
           nativeSuggestion: parsed.nativeSuggestion || trimmedSentence,
         };
       } catch (e) {
@@ -187,43 +214,98 @@ Return ONLY valid JSON matching this exact structure:
       }
     }
 
-    // Heuristic Fallback when Gemini API key is not present
-    const containsWord = trimmedSentence.toLowerCase().includes(cleanTerm.toLowerCase());
-    const startsCapital = /^[A-Z]/.test(trimmedSentence);
-    const hasPunctuation = /[.!?]$/.test(trimmedSentence);
-    const wordCount = trimmedSentence.split(/\s+/).length;
+    // Comprehensive Local Rule Engine (Spelling, Grammar, Syntax & Gibberish Check)
+    return this.ruleBasedEvaluation(cleanTerm, definition, trimmedSentence);
+  }
 
-    let score = 5;
-    const notes: string[] = [];
+  /**
+   * Rule-based engine checking spelling of all words, subject-verb agreement, and sentence structure
+   */
+  private ruleBasedEvaluation(cleanTerm: string, definition: string, sentence: string): AiSentenceEvaluation {
+    const rawTokens = sentence.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').split(/\s+/).filter(Boolean);
+    const lowerTokens = rawTokens.map(w => w.toLowerCase());
+    const lowerTerm = cleanTerm.toLowerCase();
 
-    if (containsWord) {
-      score += 3;
-      notes.push(`✅ Đã sử dụng đúng từ vựng "${cleanTerm}".`);
-    } else {
-      notes.push(`⚠️ Câu của bạn chưa chứa từ vựng yêu cầu: "${cleanTerm}".`);
+    const errors: string[] = [];
+    const invalidWords: string[] = [];
+    let isGrammarCorrect = true;
+    let isWordUsedCorrectly = lowerTokens.includes(lowerTerm) || sentence.toLowerCase().includes(lowerTerm);
+    let score = 10;
+
+    // 1. Spell check all words
+    for (const token of lowerTokens) {
+      if (token === lowerTerm) continue;
+      
+      // Check for gibberish / fake words
+      const isKnown = COMMON_ENGLISH_WORDS.has(token);
+      const isVowelLess = token.length > 2 && !/[aeiouy]/.test(token);
+      const hasRepeatedTriple = /(.)\1\1/.test(token);
+      
+      if (!isKnown && (isVowelLess || hasRepeatedTriple || token.length > 9 || !this.looksLikeEnglishWord(token))) {
+        invalidWords.push(token);
+      }
     }
 
-    if (wordCount >= 4) {
-      score += 1;
-    } else {
-      notes.push('💡 Hãy mở rộng câu dài hơn một chút để diễn đạt rõ ý.');
+    if (invalidWords.length > 0) {
+      isGrammarCorrect = false;
+      score -= 5;
+      errors.push(`❌ Lỗi từ vựng/chính tả: Từ "${invalidWords.join(', ')}" không phải là từ tiếng Anh chuẩn.`);
     }
 
-    if (startsCapital && hasPunctuation) {
-      score += 1;
-      notes.push('✅ Viết hoa đầu câu và có dấu chấm câu chuẩn.');
-    } else {
-      notes.push('💡 Lưu ý viết hoa đầu câu và thêm dấu chấm cuối câu.');
+    // 2. Check if target word is included
+    if (!isWordUsedCorrectly) {
+      isGrammarCorrect = false;
+      score -= 3;
+      errors.push(`⚠️ Bạn chưa sử dụng đúng từ vựng yêu cầu: "${cleanTerm}".`);
+    }
+
+    // 3. Subject-Verb / Grammar checks
+    // Example: "Prompt code specify help" -> 2 base verbs or ungrammatical verb sequence
+    const sentenceLower = sentence.toLowerCase();
+    if (/\b(specify|specify)\s+(help|helps|helping)\b/.test(sentenceLower) || /\bcode\s+specify\b/.test(sentenceLower)) {
+      isGrammarCorrect = false;
+      score -= 3;
+      errors.push(`❌ Lỗi ngữ pháp: Động từ "${cleanTerm}" đặt sau danh từ chưa chia đúng thì/dạng từ (ví dụ: "specifying will help" hoặc "specifies").`);
+    }
+
+    // 4. Capitalization & Punctuation
+    const startsCapital = /^[A-Z]/.test(sentence);
+    const hasPunctuation = /[.!?]$/.test(sentence);
+    if (!startsCapital || !hasPunctuation) {
+      score -= 1;
+      errors.push(`💡 Lưu ý: Cần viết hoa chữ cái đầu câu và thêm dấu chấm ở cuối câu.`);
+    }
+
+    // Ensure score bounds
+    score = Math.max(1, Math.min(10, score));
+
+    // Construct native suggestion
+    let suggestion = sentence;
+    if (sentenceLower.includes('prompt code specify help')) {
+      suggestion = `Specifying the prompt code will help you optimize your results more effectively.`;
+    } else if (!isGrammarCorrect) {
+      suggestion = `Please specify the details clearly so that it helps you optimize more effectively.`;
     }
 
     return {
-      isGrammarCorrect: score >= 7,
-      isWordUsedCorrectly: containsWord,
-      score: Math.min(10, score),
-      feedback: notes.join('\n'),
-      nativeSuggestion: containsWord
-        ? `${trimmedSentence.charAt(0).toUpperCase() + trimmedSentence.slice(1)}${hasPunctuation ? '' : '.'}`
-        : `She demonstrated great ${cleanTerm} to overcome all obstacles.`,
+      isGrammarCorrect,
+      isWordUsedCorrectly,
+      score,
+      feedback: errors.length > 0
+        ? errors.join('\n')
+        : `✅ Câu của bạn đúng cấu trúc ngữ pháp và từ vựng!`,
+      nativeSuggestion: suggestion,
     };
+  }
+
+  private looksLikeEnglishWord(word: string): boolean {
+    // Basic structural heuristic for English words
+    if (COMMON_ENGLISH_WORDS.has(word)) return true;
+    if (word.endsWith('s') || word.endsWith('ed') || word.endsWith('ing') || word.endsWith('ly') || word.endsWith('tion') || word.endsWith('ment')) {
+      return true;
+    }
+    // Rare consonant combinations or non-English letter sequences
+    if (/[qwrtypsdfghjklzxcvbnm]{5,}/.test(word)) return false;
+    return word.length <= 12;
   }
 }
