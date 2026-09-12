@@ -9,7 +9,7 @@ import {
 } from '@/lib/api';
 import {
   ArrowLeft, Plus, Trash2, Edit, Brain, BookOpen, HelpCircle, Sparkles, X,
-  Edit3, Lock, Globe, Calendar, Flag, Zap
+  Edit3, Lock, Globe, Calendar, Flag, Zap, Keyboard
 } from 'lucide-react';
 
 export default function DeckDetailPage() {
@@ -237,6 +237,9 @@ export default function DeckDetailPage() {
               <button onClick={handleGenerate} disabled={generating || cards.length < 2} className="btn btn-secondary btn-sm">
                 <Sparkles size={14} /> {generating ? 'Đang tạo...' : 'Tạo câu hỏi'}
               </button>
+              <Link href={`/study/typing/${id}`} className="btn btn-secondary btn-sm">
+                <Keyboard size={14} color="var(--teal)" /> Gõ từ
+              </Link>
               <Link href={`/study/test/${id}`} className="btn btn-secondary btn-sm">
                 <Zap size={14} color="var(--amber)" /> Bài Test
               </Link>

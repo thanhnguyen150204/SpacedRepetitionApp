@@ -9,6 +9,7 @@ export enum SessionType {
   FLASHCARD = 'flashcard',
   QUIZ = 'quiz',
   SPACED_REVIEW = 'spaced_review',
+  TYPING = 'typing',
 }
 
 @Entity('study_sessions')
