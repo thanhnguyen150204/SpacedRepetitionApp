@@ -481,7 +481,7 @@ export default function AiSentencePracticePage() {
                   fontSize: 14,
                   color: 'var(--text-primary)'
                 }}>
-                  ✏️ Hãy viết 1 câu tiếng Anh có sử dụng từ <strong style={{ color: 'var(--accent)' }}>"{targetTerm}"</strong>. AI Gemini sẽ chấm điểm & sửa lỗi giúp bạn!
+                  ✏️ Hãy viết 1 câu tiếng Anh có sử dụng từ <strong style={{ color: 'var(--accent)' }}>"{targetTerm}"</strong>.
                 </div>
 
                 {phase === 'typing' ? (
@@ -498,7 +498,7 @@ export default function AiSentencePracticePage() {
                         borderRadius: 'var(--radius-sm)',
                         resize: 'none',
                       }}
-                      placeholder={`Ví dụ: Her ${targetTerm} helped her achieve her goals.`}
+                      placeholder="Viết câu tiếng Anh của bạn tại đây..."
                       value={customSentence}
                       onChange={e => setCustomSentence(e.target.value)}
                       onKeyDown={handleKeyDown}
