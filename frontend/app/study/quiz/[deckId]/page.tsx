@@ -46,7 +46,7 @@ export default function QuizPage() {
     setOptions(opts);
   };
 
-  const handleSelect = async (opt: string) => {
+  const handleSelect = (opt: string) => {
     if (selected) return;
     setSelected(opt);
     const currentQ = questions[index];
@@ -56,25 +56,24 @@ export default function QuizPage() {
     setCorrect(newCorrect);
     setWrong(newWrong);
 
-    // If answered WRONG in Quiz, automatically enroll card into Today's Spaced Repetition review queue with 1-day reminder!
+    // If answered WRONG in Quiz, non-blocking background submission to Spaced Repetition review queue
     if (!isCorrect && currentQ?.cardId) {
-      try {
-        await submitReview({ cardId: currentQ.cardId, quality: 0, sessionId: session?.id });
-      } catch (err) {
+      submitReview({ cardId: currentQ.cardId, quality: 0, sessionId: session?.id }).catch(err => {
         console.error('Failed to submit wrong quiz item to review queue:', err);
-      }
+      });
     }
 
-    setTimeout(async () => {
+    // Fast 300ms transition delay
+    setTimeout(() => {
       if (index + 1 >= questions.length) {
-        if (session) await endSession(session.id, newCorrect, newWrong);
+        if (session) endSession(session.id, newCorrect, newWrong).catch(console.error);
         setDone(true);
       } else {
         setIndex(i => i + 1);
         setSelected(null);
         buildOptions(questions, index + 1);
       }
-    }, 1000);
+    }, 300);
   };
 
   if (loading) return (

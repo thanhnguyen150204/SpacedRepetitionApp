@@ -49,61 +49,11 @@ function ReviewContent() {
   const questionType = currentItem?.questionType || 'en_to_vi';
   const targetAnswer = currentItem?.correctAnswer || (questionType === 'en_to_vi' ? currentCard?.definition : currentCard?.term);
 
-  const handleSelectOption = useCallback(async (option: string) => {
-    if (isAnswered || !currentCard) return;
-
-    setSelectedOpt(option);
-    setIsAnswered(true);
-
-    const isRight = option.trim().toLowerCase() === targetAnswer.trim().toLowerCase();
-    const responseTimeMs = Date.now() - startTime;
-
-    if (isRight) {
-      const newCorrect = correct + 1;
-      setCorrect(newCorrect);
-      
-      // Quality logic: Good (4) for early stages, Easy (5) if already repeated
-      const quality = currentItem.repetitions >= 2 ? 5 : 4;
-      
-      await submitReview({
-        cardId: currentCard.id,
-        quality,
-        responseTimeMs,
-        sessionId: session?.id,
-      });
-
-      // Auto advance on correct answer
-      setTimeout(async () => {
-        if (index + 1 >= cards.length) {
-          if (session) await endSession(session.id, newCorrect, wrong);
-          setDone(true);
-        } else {
-          setIndex(i => i + 1);
-          setSelectedOpt(null);
-          setIsAnswered(false);
-          setStartTime(Date.now());
-        }
-      }, 900);
-    } else {
-      const newWrong = wrong + 1;
-      setWrong(newWrong);
-
-      // Quality 0 (Again): Scheduled for 1 day, and re-queued in current session
-      await submitReview({
-        cardId: currentCard.id,
-        quality: 0,
-        responseTimeMs,
-        sessionId: session?.id,
-      });
-
-      // Re-queue card to end of today's session
-      setCards(prev => [...prev, currentItem]);
-    }
-  }, [isAnswered, currentCard, targetAnswer, startTime, correct, wrong, currentItem, session, index, cards.length]);
-
-  const handleNextAfterWrong = async () => {
+  const handleNextQuestion = useCallback((newCorrectCount: number, newWrongCount: number) => {
     if (index + 1 >= cards.length) {
-      if (session) await endSession(session.id, correct, wrong);
+      if (session) {
+        endSession(session.id, newCorrectCount, newWrongCount).catch(console.error);
+      }
       setDone(true);
     } else {
       setIndex(i => i + 1);
@@ -111,7 +61,45 @@ function ReviewContent() {
       setIsAnswered(false);
       setStartTime(Date.now());
     }
-  };
+  }, [index, cards.length, session]);
+
+  const handleSelectOption = useCallback((option: string) => {
+    if (isAnswered || !currentCard) return;
+
+    setSelectedOpt(option);
+    setIsAnswered(true);
+
+    const isRight = option.trim().toLowerCase() === targetAnswer.trim().toLowerCase();
+    const responseTimeMs = Date.now() - startTime;
+    const quality = isRight ? (currentItem.repetitions >= 2 ? 5 : 4) : 0;
+
+    // Fire-and-forget background API submission for 0ms network latency
+    submitReview({
+      cardId: currentCard.id,
+      quality,
+      responseTimeMs,
+      sessionId: session?.id,
+    }).catch(err => console.error('Failed to submit review asynchronously:', err));
+
+    if (isRight) {
+      const newCorrect = correct + 1;
+      setCorrect(newCorrect);
+      
+      // Ultra-fast 300ms feedback pause for instant transition feel
+      setTimeout(() => {
+        handleNextQuestion(newCorrect, wrong);
+      }, 300);
+    } else {
+      const newWrong = wrong + 1;
+      setWrong(newWrong);
+      // Re-queue card to end of today's session
+      setCards(prev => [...prev, currentItem]);
+    }
+  }, [isAnswered, currentCard, targetAnswer, startTime, currentItem, session, correct, wrong, handleNextQuestion]);
+
+  const handleNextAfterWrong = useCallback(() => {
+    handleNextQuestion(correct, wrong);
+  }, [correct, wrong, handleNextQuestion]);
 
   // Keyboard shortcuts (1, 2, 3, 4)
   useEffect(() => {

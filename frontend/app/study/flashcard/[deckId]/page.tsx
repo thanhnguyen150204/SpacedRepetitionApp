@@ -39,26 +39,34 @@ export default function FlashcardPage() {
 
   const currentCard = cards[index];
 
-  const handleRate = useCallback(async (quality: number) => {
+  const handleRate = useCallback((quality: number) => {
     if (!currentCard) return;
-    await submitReview({
+
+    // Non-blocking background API call
+    submitReview({
       cardId: currentCard.id,
       quality,
       responseTimeMs: Date.now() - startTime,
       sessionId: session?.id,
-    });
-    if (quality >= 3) setCorrect(c => c + 1);
+    }).catch(console.error);
+
+    const isGood = quality >= 3;
+    const newCorrect = correct + (isGood ? 1 : 0);
+    const newWrong = wrong + (isGood ? 0 : 1);
+
+    if (isGood) setCorrect(c => c + 1);
     else setWrong(w => w + 1);
 
+    // Instant transition
     if (index + 1 >= cards.length) {
-      await endSession(session.id, quality >= 3 ? correct + 1 : correct, quality < 3 ? wrong + 1 : wrong);
+      if (session) endSession(session.id, newCorrect, newWrong).catch(console.error);
       setDone(true);
     } else {
       setIndex(i => i + 1);
       setFlipped(false);
       setStartTime(Date.now());
     }
-  }, [currentCard, index, cards, session, correct, wrong, startTime]);
+  }, [currentCard, index, cards.length, session, correct, wrong, startTime]);
 
   // Keyboard shortcuts
   useEffect(() => {

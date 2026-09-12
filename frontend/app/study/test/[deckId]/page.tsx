@@ -155,15 +155,13 @@ export default function TimedTestPage() {
     ]);
 
     if (!isCorrect && currentQ?.cardId) {
-      try {
-        await submitReview({ cardId: currentQ.cardId, quality: 0, sessionId: session?.id });
-      } catch (err) {}
+      submitReview({ cardId: currentQ.cardId, quality: 0, sessionId: session?.id }).catch(console.error);
     }
 
-    // Quick transition without revealing correct/wrong during the test!
-    setTimeout(async () => {
+    // Instant/ultra-fast 100ms transition for test mode
+    setTimeout(() => {
       if (index + 1 >= questions.length) {
-        if (session) await endSession(session.id, newCorrect, newWrong);
+        if (session) endSession(session.id, newCorrect, newWrong).catch(console.error);
         setDone(true);
       } else {
         setIndex(i => i + 1);
@@ -172,7 +170,7 @@ export default function TimedTestPage() {
         setTimeLeftMs(QUESTION_TIME_LIMIT * 1000);
         isTransitioningRef.current = false;
       }
-    }, 250);
+    }, 100);
   };
 
   if (loading) return (
