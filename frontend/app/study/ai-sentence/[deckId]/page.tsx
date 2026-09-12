@@ -554,7 +554,7 @@ export default function AiSentencePracticePage() {
                               width: 52,
                               height: 52,
                               borderRadius: 14,
-                              background: aiEvaluation.score >= 8 ? '#059669' : aiEvaluation.score >= 5 ? '#d97706' : '#e11d48',
+                              background: (aiEvaluation.isGrammarCorrect && aiEvaluation.score >= 8) ? '#059669' : (aiEvaluation.score >= 6 && aiEvaluation.isGrammarCorrect) ? '#d97706' : '#e11d48',
                               color: '#ffffff',
                               display: 'flex',
                               alignItems: 'center',
@@ -566,7 +566,7 @@ export default function AiSentencePracticePage() {
                             </div>
                             <div>
                               <div style={{ fontWeight: 800, fontSize: 16 }}>
-                                {aiEvaluation.score >= 8 ? '🌟 Xuất sắc!' : aiEvaluation.score >= 5 ? '👍 Khá tốt!' : '💪 Cần cố gắng!'}
+                                {(aiEvaluation.isGrammarCorrect && aiEvaluation.score >= 8) ? '🌟 Xuất sắc!' : (aiEvaluation.score >= 6 && aiEvaluation.isGrammarCorrect) ? '👍 Khá tốt!' : '⚠️ Cần sửa lỗi & cải thiện!'}
                               </div>
                               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Thang điểm AI: {aiEvaluation.score}/10</div>
                             </div>
@@ -574,7 +574,7 @@ export default function AiSentencePracticePage() {
 
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <span className={`badge ${aiEvaluation.isGrammarCorrect ? 'badge-accent' : 'badge-rose'}`}>
-                              {aiEvaluation.isGrammarCorrect ? '✓ Đúng ngữ pháp' : '✗ Sai ngữ pháp'}
+                              {aiEvaluation.isGrammarCorrect ? '✓ Đúng ngữ pháp' : '✗ Sai ngữ pháp / chính tả'}
                             </span>
                             <span className={`badge ${aiEvaluation.isWordUsedCorrectly ? 'badge-purple' : 'badge-amber'}`}>
                               {aiEvaluation.isWordUsedCorrectly ? '✓ Dùng từ đúng' : '⚠️ Cần sửa dùng từ'}
@@ -609,7 +609,7 @@ export default function AiSentencePracticePage() {
                             gap: 10
                           }}>
                             <div>
-                              <span style={{ fontWeight: 700, color: 'var(--purple)', fontSize: 12, display: 'block', marginBottom: 2 }}>GỢI Ý VIẾT TỰ NHIÊN KIỂU BẢN XỨ:</span>
+                              <span style={{ fontWeight: 700, color: 'var(--purple)', fontSize: 12, display: 'block', marginBottom: 2 }}>CÂU HOÀN THIỆN ĐÃ ĐƯỢC SỬA LỖI:</span>
                               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--purple)' }}>
                                 "{aiEvaluation.nativeSuggestion}"
                               </div>

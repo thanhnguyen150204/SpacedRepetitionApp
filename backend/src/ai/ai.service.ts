@@ -70,36 +70,47 @@ export class AiService {
       return null;
     }
 
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
+    const candidateModels = [
+      'gemini-3.6-flash',
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-2.0-flash',
+    ];
+
+    for (const model of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: 'application/json',
             }
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json',
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return text;
           }
-        }),
-      });
-
-      if (!response.ok) {
-        console.warn('Gemini API call returned non-200 status:', response.status);
-        return null;
+        } else {
+          console.warn(`Gemini API call with model ${model} returned status: ${response.status}`);
+        }
+      } catch (error) {
+        console.error(`Error calling Gemini API model ${model}:`, error);
       }
-
-      const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      return text || null;
-    } catch (error) {
-      console.error('Error calling Gemini API:', error);
-      return null;
     }
+
+    return null;
   }
 
   async generateSentencePractice(
@@ -242,11 +253,11 @@ Return ONLY valid JSON:
     // 1. Check spellings
     for (const token of lowerTokens) {
       if (token === lowerTerm) continue;
-      
+
       const isKnown = COMMON_ENGLISH_WORDS.has(token);
       const isVowelLess = token.length > 2 && !/[aeiouy]/.test(token);
       const hasRepeatedTriple = /(.)\1\1/.test(token);
-      
+
       if (!isKnown && (isVowelLess || hasRepeatedTriple || token.length > 10 || !this.looksLikeEnglishWord(token))) {
         invalidWords.push(token);
       }
