@@ -18,7 +18,9 @@ interface CharComparison {
 
 function cleanWordTerm(rawTerm: string): string {
   if (!rawTerm) return '';
-  let cleaned = rawTerm.replace(/\s*\([^)]*\)/g, '');
+  let cleaned = rawTerm.replace(/\s*\([^)]*\)?/gi, '');
+  cleaned = cleaned.replace(/\s+\b(v|n|adj|adv|phr|prep|phrase)\.?,?$/gi, '');
+  cleaned = cleaned.replace(/\b(v|n|adj|adv|phr|prep)\.?$/gi, '');
   cleaned = cleaned.trim();
   return cleaned || rawTerm.trim();
 }

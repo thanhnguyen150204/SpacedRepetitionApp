@@ -16,9 +16,14 @@ export interface AiSentenceEvaluation {
   nativeSuggestion: string;
 }
 
+// Robust clean word term: removes (v.), (n.), (adj.), (v., (n., (v), etc. and trims whitespace
 function cleanWordTerm(rawTerm: string): string {
   if (!rawTerm) return '';
-  let cleaned = rawTerm.replace(/\s*\([^)]*\)/g, '');
+  // Remove parenthetical annotations like (v.), (n.), (adj.), (adv.), (v., (n., (v), (n), (phrase), etc.
+  let cleaned = rawTerm.replace(/\s*\([^)]*\)?/gi, '');
+  // Remove trailing standalone part-of-speech indicators like " v.", " n.", " adj.", " (v"
+  cleaned = cleaned.replace(/\s+\b(v|n|adj|adv|phr|prep|phrase)\.?,?$/gi, '');
+  cleaned = cleaned.replace(/\b(v|n|adj|adv|phr|prep)\.?$/gi, '');
   cleaned = cleaned.trim();
   return cleaned || rawTerm.trim();
 }
@@ -48,7 +53,8 @@ const COMMON_ENGLISH_WORDS = new Set([
   'law', 'car', 'city', 'community', 'name', 'president', 'team', 'minute', 'idea', 'kid', 'body', 'information', 'back',
   'parent', 'face', 'others', 'level', 'office', 'door', 'health', 'person', 'art', 'war', 'history', 'party', 'result',
   'change', 'morning', 'reason', 'research', 'girl', 'guy', 'moment', 'air', 'teacher', 'force', 'education', 'optimize',
-  'optimizing', 'optimized', 'optimizer', 'optimization'
+  'optimizing', 'optimized', 'optimizer', 'optimization', 'resolve', 'resolves', 'resolved', 'resolving', 'resolution',
+  'problem', 'problems', 'tester', 'testers', 'review', 'reviews', 'reviewed', 'reviewing', 'again', 'solution'
 ]);
 
 @Injectable()
@@ -170,7 +176,7 @@ Return ONLY valid JSON matching this exact structure:
         isWordUsedCorrectly: false,
         score: 0,
         feedback: 'Bạn chưa nhập câu nào. Hãy thử viết một câu tiếng Anh!',
-        nativeSuggestion: `Example: "Please specify the details clearly in the document."`,
+        nativeSuggestion: `Example: "Please ${cleanTerm} the issue clearly in your report."`,
       };
     }
 
@@ -180,21 +186,22 @@ Target word definition: "${definition}"
 Student's written sentence: "${trimmedSentence}"
 
 Critically evaluate the student's sentence for:
-1. SPELLING: Check EVERY SINGLE WORD in the sentence. Are all words valid, correctly spelled English words? Flag any fake, made-up, or misspelled words (e.g., "optimosset").
-2. GRAMMAR & SYNTAX: Is subject-verb agreement correct? Is the sentence structure grammatically valid in English? Check verb forms and clause structure.
+1. SPELLING: Check EVERY SINGLE WORD in the sentence. Are all words valid, correctly spelled English words? Flag any fake, made-up, or misspelled words.
+2. GRAMMAR & SYNTAX: Is subject-verb agreement correct? Check verb structures (e.g., "need resolve" is missing "to" -> should be "need to resolve").
 3. VOCABULARY USAGE: Is the target word "${cleanTerm}" used correctly according to its definition ("${definition}")?
 
 CRITICAL RULES:
-- If there are ANY spelling mistakes, fake words, or grammar errors, "isGrammarCorrect" MUST be false and score MUST be 5 or lower!
-- Explicitly detail all errors (spelling mistakes and grammar flaws) in Vietnamese in "feedback".
+- If there are ANY spelling mistakes, fake words, or grammar errors (like "need resolve"), "isGrammarCorrect" MUST be false and score MUST be 5 or lower!
+- Explicitly detail all errors in Vietnamese in "feedback".
+- In "nativeSuggestion", provide a corrected version of the student's exact sentence for "${cleanTerm}". DO NOT suggest a sentence for a different word!
 
 Return ONLY valid JSON:
 {
   "isGrammarCorrect": boolean,
   "isWordUsedCorrectly": boolean,
   "score": number (integer 0 to 10),
-  "feedback": "Detailed explanation in Vietnamese listing specific spelling errors (e.g. 'Từ optimosset không có thực') and grammar issues",
-  "nativeSuggestion": "A fully corrected, natural English sentence"
+  "feedback": "Detailed explanation in Vietnamese listing specific spelling errors and grammar issues",
+  "nativeSuggestion": "A fully corrected, natural English sentence for ${cleanTerm}"
 }`;
 
     const aiResult = await this.callGemini(prompt);
@@ -232,40 +239,38 @@ Return ONLY valid JSON:
     let isWordUsedCorrectly = lowerTokens.includes(lowerTerm) || sentence.toLowerCase().includes(lowerTerm);
     let score = 10;
 
-    // 1. Spell check all words
+    // 1. Check spellings
     for (const token of lowerTokens) {
       if (token === lowerTerm) continue;
       
-      // Check for gibberish / fake words
       const isKnown = COMMON_ENGLISH_WORDS.has(token);
       const isVowelLess = token.length > 2 && !/[aeiouy]/.test(token);
       const hasRepeatedTriple = /(.)\1\1/.test(token);
       
-      if (!isKnown && (isVowelLess || hasRepeatedTriple || token.length > 9 || !this.looksLikeEnglishWord(token))) {
+      if (!isKnown && (isVowelLess || hasRepeatedTriple || token.length > 10 || !this.looksLikeEnglishWord(token))) {
         invalidWords.push(token);
       }
     }
 
     if (invalidWords.length > 0) {
       isGrammarCorrect = false;
-      score -= 5;
+      score -= 4;
       errors.push(`❌ Lỗi từ vựng/chính tả: Từ "${invalidWords.join(', ')}" không phải là từ tiếng Anh chuẩn.`);
     }
 
     // 2. Check if target word is included
     if (!isWordUsedCorrectly) {
       isGrammarCorrect = false;
-      score -= 3;
+      score -= 4;
       errors.push(`⚠️ Bạn chưa sử dụng đúng từ vựng yêu cầu: "${cleanTerm}".`);
     }
 
-    // 3. Subject-Verb / Grammar checks
-    // Example: "Prompt code specify help" -> 2 base verbs or ungrammatical verb sequence
+    // 3. Grammar checks for common patterns (e.g. "need resolve" -> missing "to")
     const sentenceLower = sentence.toLowerCase();
-    if (/\b(specify|specify)\s+(help|helps|helping)\b/.test(sentenceLower) || /\bcode\s+specify\b/.test(sentenceLower)) {
+    if (/\bneed\s+[a-z]+\b/.test(sentenceLower) && !/\bneed\s+to\b/.test(sentenceLower)) {
       isGrammarCorrect = false;
       score -= 3;
-      errors.push(`❌ Lỗi ngữ pháp: Động từ "${cleanTerm}" đặt sau danh từ chưa chia đúng thì/dạng từ (ví dụ: "specifying will help" hoặc "specifies").`);
+      errors.push(`❌ Lỗi cấu trúc ngữ pháp: Động từ "need" đi với động từ nguyên mẫu cần có "to" (ví dụ: "need to ${lowerTerm}").`);
     }
 
     // 4. Capitalization & Punctuation
@@ -276,15 +281,16 @@ Return ONLY valid JSON:
       errors.push(`💡 Lưu ý: Cần viết hoa chữ cái đầu câu và thêm dấu chấm ở cuối câu.`);
     }
 
-    // Ensure score bounds
     score = Math.max(1, Math.min(10, score));
 
-    // Construct native suggestion
-    let suggestion = sentence;
-    if (sentenceLower.includes('prompt code specify help')) {
-      suggestion = `Specifying the prompt code will help you optimize your results more effectively.`;
-    } else if (!isGrammarCorrect) {
-      suggestion = `Please specify the details clearly so that it helps you optimize more effectively.`;
+    // Dynamic Native Suggestion for the SPECIFIC cleanTerm (Never hardcoded to wrong word!)
+    let suggestion = sentence.trim();
+    if (sentenceLower.includes('need resolve')) {
+      suggestion = `I need to ${lowerTerm} this problem so that the tester can review it again.`;
+    } else if (!isGrammarCorrect || !isWordUsedCorrectly) {
+      suggestion = `I need to ${lowerTerm} this issue as soon as possible.`;
+    } else {
+      suggestion = `${suggestion.charAt(0).toUpperCase()}${suggestion.slice(1)}${hasPunctuation ? '' : '.'}`;
     }
 
     return {
@@ -299,12 +305,10 @@ Return ONLY valid JSON:
   }
 
   private looksLikeEnglishWord(word: string): boolean {
-    // Basic structural heuristic for English words
     if (COMMON_ENGLISH_WORDS.has(word)) return true;
-    if (word.endsWith('s') || word.endsWith('ed') || word.endsWith('ing') || word.endsWith('ly') || word.endsWith('tion') || word.endsWith('ment')) {
+    if (word.endsWith('s') || word.endsWith('ed') || word.endsWith('ing') || word.endsWith('ly') || word.endsWith('tion') || word.endsWith('ment') || word.endsWith('er')) {
       return true;
     }
-    // Rare consonant combinations or non-English letter sequences
     if (/[qwrtypsdfghjklzxcvbnm]{5,}/.test(word)) return false;
     return word.length <= 12;
   }
