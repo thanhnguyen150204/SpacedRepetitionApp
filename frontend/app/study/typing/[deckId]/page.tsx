@@ -4,13 +4,22 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCards, startSession, endSession, submitReview, getDeck } from '@/lib/api';
-import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, Sparkles, ArrowRight, CornerDownLeft } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, ArrowRight, CornerDownLeft } from 'lucide-react';
 import Confetti from '@/components/Confetti';
 
 interface CharComparison {
   char: string;
   expectedChar: string;
   isMatch: boolean;
+}
+
+// Clean term: Filter out "(type of word)" e.g., (v.), (n.), (adj.), (adv.), (phr.), (prep.) and trim whitespace from both ends
+function cleanWordTerm(rawTerm: string): string {
+  if (!rawTerm) return '';
+  // Remove parenthetical annotations like (v.), (n.), (adj.), (adv.), (phrase), (prep.), (v), (n), etc.
+  let cleaned = rawTerm.replace(/\s*\([^)]*\)/g, '');
+  cleaned = cleaned.trim();
+  return cleaned || rawTerm.trim();
 }
 
 export default function TypingPracticePage() {
@@ -41,40 +50,40 @@ export default function TypingPracticePage() {
           const shuffled = [...c].sort(() => Math.random() - 0.5);
           setCards(shuffled);
           try {
-            const s = await startSession(deckId, 'typing');
-            setSession(s);
-          } catch (e) {
-            console.error('Error starting typing session:', e);
-          }
+            startSession(deckId, 'typing').then(setSession).catch(console.error);
+          } catch (e) {}
         }
       })
       .finally(() => setLoading(false));
   }, [deckId]);
 
-  // Focus input automatically whenever index or phase changes to 'typing'
+  // Focus input INSTANTLY whenever index or phase changes to 'typing'
   useEffect(() => {
     if (phase === 'typing' && inputRef.current) {
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         inputRef.current?.focus();
-      }, 50);
+      });
     }
   }, [index, phase]);
 
   const currentCard = cards[index];
+  const targetTerm = currentCard ? cleanWordTerm(currentCard.term) : '';
 
   // TTS audio playback
   const speakWord = (text: string) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      window.speechSynthesis.speak(utterance);
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {}
     }
   };
 
-  // Compare user input character by character with target word
+  // Compare user input character by character with target word (case-insensitive & trimmed)
   const getCharComparison = (target: string, input: string): { comparisons: CharComparison[]; isExact: boolean } => {
-    const cleanTarget = target.trim();
+    const cleanTarget = cleanWordTerm(target);
     const cleanInput = input.trim();
 
     const isExact = cleanTarget.toLowerCase() === cleanInput.toLowerCase();
@@ -96,38 +105,38 @@ export default function TypingPracticePage() {
     return { comparisons, isExact };
   };
 
-  const handleCheck = useCallback(async () => {
+  // INSTANT CHECK: Update state immediately (0ms delay), trigger review submit asynchronously in background
+  const handleCheck = useCallback(() => {
     if (!currentCard || !userInput.trim()) return;
 
     const { isExact } = getCharComparison(currentCard.term, userInput);
 
+    // Update UI state INSTANTLY
     if (isExact) {
       setCorrect(c => c + 1);
     } else {
       setWrong(w => w + 1);
-      // Automatically record wrong answer to Spaced Repetition queue
+      // Non-blocking background API submission for Spaced Repetition queue
       if (currentCard.id) {
-        try {
-          await submitReview({ cardId: currentCard.id, quality: 0, sessionId: session?.id });
-        } catch (err) {
-          console.error('Failed to submit card review:', err);
-        }
+        submitReview({ cardId: currentCard.id, quality: 0, sessionId: session?.id }).catch(err => {
+          console.error('Failed to submit card review asynchronously:', err);
+        });
       }
     }
 
     setPhase('checked');
-    speakWord(currentCard.term);
-  }, [currentCard, userInput, session]);
+    speakWord(targetTerm);
+  }, [currentCard, userInput, session, targetTerm]);
 
-  const handleNext = useCallback(async () => {
+  // INSTANT NEXT: Advance to next question immediately without waiting for API calls
+  const handleNext = useCallback(() => {
     if (index + 1 >= cards.length) {
       if (session) {
-        try {
-          await endSession(session.id, correct, wrong);
-        } catch (e) {}
+        endSession(session.id, correct, wrong).catch(console.error);
       }
       setDone(true);
     } else {
+      // Instant switch
       setIndex(i => i + 1);
       setUserInput('');
       setPhase('typing');
@@ -250,10 +259,9 @@ export default function TypingPracticePage() {
 
   // Mask example sentence with blank line
   const formattedExample = currentCard.exampleSentence
-    ? currentCard.exampleSentence.replace(
-        new RegExp(currentCard.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
-        '___________'
-      )
+    ? currentCard.exampleSentence
+        .replace(new RegExp(currentCard.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '___________')
+        .replace(new RegExp(targetTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '___________')
     : null;
 
   return (
@@ -317,14 +325,14 @@ export default function TypingPracticePage() {
                   </span>
                 )}
                 <span className="badge tag">
-                  {currentCard.term.length} chữ cái
+                  {targetTerm.length} chữ cái
                 </span>
               </div>
 
               <button
                 className="btn btn-ghost btn-sm btn-icon"
                 title="Nghe phát âm"
-                onClick={() => speakWord(currentCard.term)}
+                onClick={() => speakWord(targetTerm)}
                 style={{ color: 'var(--accent)' }}
               >
                 <Volume2 size={20} />
@@ -505,7 +513,7 @@ export default function TypingPracticePage() {
                         Từ đúng chuẩn:
                       </div>
                       <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--accent)' }}>
-                        {currentCard.term}
+                        {targetTerm}
                       </div>
                     </div>
                   )}
