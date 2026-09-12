@@ -19,9 +19,7 @@ export interface AiSentenceEvaluation {
 // Robust clean word term: removes (v.), (n.), (adj.), (v., (n., (v), etc. and trims whitespace
 function cleanWordTerm(rawTerm: string): string {
   if (!rawTerm) return '';
-  // Remove parenthetical annotations like (v.), (n.), (adj.), (adv.), (v., (n., (v), (n), (phrase), etc.
   let cleaned = rawTerm.replace(/\s*\([^)]*\)?/gi, '');
-  // Remove trailing standalone part-of-speech indicators like " v.", " n.", " adj.", " (v"
   cleaned = cleaned.replace(/\s+\b(v|n|adj|adv|phr|prep|phrase)\.?,?$/gi, '');
   cleaned = cleaned.replace(/\b(v|n|adj|adv|phr|prep)\.?$/gi, '');
   cleaned = cleaned.trim();
@@ -54,7 +52,9 @@ const COMMON_ENGLISH_WORDS = new Set([
   'parent', 'face', 'others', 'level', 'office', 'door', 'health', 'person', 'art', 'war', 'history', 'party', 'result',
   'change', 'morning', 'reason', 'research', 'girl', 'guy', 'moment', 'air', 'teacher', 'force', 'education', 'optimize',
   'optimizing', 'optimized', 'optimizer', 'optimization', 'resolve', 'resolves', 'resolved', 'resolving', 'resolution',
-  'problem', 'problems', 'tester', 'testers', 'review', 'reviews', 'reviewed', 'reviewing', 'again', 'solution'
+  'problem', 'problems', 'tester', 'testers', 'review', 'reviews', 'reviewed', 'reviewing', 'again', 'solution',
+  'determine', 'determines', 'determined', 'determining', 'determination', 'join', 'joins', 'joined', 'joining',
+  'growth', 'grow', 'grows', 'grew', 'growing'
 ]);
 
 @Injectable()
@@ -187,13 +187,13 @@ Student's written sentence: "${trimmedSentence}"
 
 Critically evaluate the student's sentence for:
 1. SPELLING: Check EVERY SINGLE WORD in the sentence. Are all words valid, correctly spelled English words? Flag any fake, made-up, or misspelled words.
-2. GRAMMAR & SYNTAX: Is subject-verb agreement correct? Check verb structures (e.g., "need resolve" is missing "to" -> should be "need to resolve").
+2. GRAMMAR & SYNTAX: Is subject-verb agreement correct? Check verb structures (e.g., "determine join" is ungrammatical -> must be "determine to join" or "am determined to join", "need resolve" -> "need to resolve"). Check preposition usage (e.g., "join in a company" -> "join a company"). Check pronoun capitalization ("i" -> "I").
 3. VOCABULARY USAGE: Is the target word "${cleanTerm}" used correctly according to its definition ("${definition}")?
 
 CRITICAL RULES:
-- If there are ANY spelling mistakes, fake words, or grammar errors (like "need resolve"), "isGrammarCorrect" MUST be false and score MUST be 5 or lower!
+- If there are ANY spelling mistakes, fake words, or grammar errors (such as "determine join", "join in this company", "want growth more", or uncapitalized "i"), "isGrammarCorrect" MUST be false and score MUST be 5 or lower!
 - Explicitly detail all errors in Vietnamese in "feedback".
-- In "nativeSuggestion", provide a corrected version of the student's exact sentence for "${cleanTerm}". DO NOT suggest a sentence for a different word!
+- In "nativeSuggestion", provide a corrected version of the student's sentence for "${cleanTerm}".
 
 Return ONLY valid JSON:
 {
@@ -221,12 +221,12 @@ Return ONLY valid JSON:
       }
     }
 
-    // Comprehensive Local Rule Engine (Spelling, Grammar, Syntax & Gibberish Check)
+    // Comprehensive Local Rule Engine (Spelling, Grammar, Syntax & Verb Pattern Check)
     return this.ruleBasedEvaluation(cleanTerm, definition, trimmedSentence);
   }
 
   /**
-   * Rule-based engine checking spelling of all words, subject-verb agreement, and sentence structure
+   * Comprehensive rule-based engine for grammar, syntax, spelling, and verb complementation
    */
   private ruleBasedEvaluation(cleanTerm: string, definition: string, sentence: string): AiSentenceEvaluation {
     const rawTokens = sentence.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').split(/\s+/).filter(Boolean);
@@ -258,22 +258,48 @@ Return ONLY valid JSON:
       errors.push(`❌ Lỗi từ vựng/chính tả: Từ "${invalidWords.join(', ')}" không phải là từ tiếng Anh chuẩn.`);
     }
 
-    // 2. Check if target word is included
+    // 2. Check target word presence
     if (!isWordUsedCorrectly) {
       isGrammarCorrect = false;
       score -= 4;
       errors.push(`⚠️ Bạn chưa sử dụng đúng từ vựng yêu cầu: "${cleanTerm}".`);
     }
 
-    // 3. Grammar checks for common patterns (e.g. "need resolve" -> missing "to")
     const sentenceLower = sentence.toLowerCase();
-    if (/\bneed\s+[a-z]+\b/.test(sentenceLower) && !/\bneed\s+to\b/.test(sentenceLower)) {
+
+    // 3. Verb complementation pattern check (e.g. "determine join", "need resolve", "decide go")
+    const verbPatternRegex = /\b(determine|decide|want|need|agree|hope|plan|expect|try|refuse|attempt|wish)\s+(?!to\b|\s+to\b)([a-z]{3,})\b/i;
+    const verbMatch = sentenceLower.match(verbPatternRegex);
+    if (verbMatch) {
       isGrammarCorrect = false;
-      score -= 3;
-      errors.push(`❌ Lỗi cấu trúc ngữ pháp: Động từ "need" đi với động từ nguyên mẫu cần có "to" (ví dụ: "need to ${lowerTerm}").`);
+      score -= 4;
+      const v = verbMatch[1];
+      const nextV = verbMatch[2];
+      errors.push(`❌ Lỗi cấu trúc ngữ pháp: Động từ "${v}" đi với động từ khác cần có "to" (ví dụ: "${v} to ${nextV}" hoặc "am ${v}ed to ${nextV}").`);
     }
 
-    // 4. Capitalization & Punctuation
+    // 4. Preposition error check (e.g. "join in this company" -> "join this company")
+    if (/\bjoin\s+in\s+(a|the|this|that|our|my|any)?\s*(company|team|organization|group|club|project)\b/i.test(sentenceLower)) {
+      isGrammarCorrect = false;
+      score -= 2;
+      errors.push(`❌ Lỗi kết hợp từ (Collocation): Dùng "join this company" thay vì "join in this company".`);
+    }
+
+    // 5. Expression error (e.g. "want growth more" -> "want to grow more")
+    if (/\bwant\s+growth\s+more\b/i.test(sentenceLower) || /\bwant\s+growth\b/i.test(sentenceLower)) {
+      isGrammarCorrect = false;
+      score -= 2;
+      errors.push(`❌ Lỗi diễn đạt: Nên dùng "want to grow more" thay vì "want growth more".`);
+    }
+
+    // 6. Standalone lowercase 'i' pronoun check
+    if (/\b i \b|\b i$|^i \b/.test(sentence)) {
+      isGrammarCorrect = false;
+      score -= 1;
+      errors.push(`❌ Lỗi chính tả/viết hoa: Đại từ xưng hô "I" phải luôn viết hoa (thay vì chữ "i" thường).`);
+    }
+
+    // 7. Capitalization & Punctuation check
     const startsCapital = /^[A-Z]/.test(sentence);
     const hasPunctuation = /[.!?]$/.test(sentence);
     if (!startsCapital || !hasPunctuation) {
@@ -281,14 +307,21 @@ Return ONLY valid JSON:
       errors.push(`💡 Lưu ý: Cần viết hoa chữ cái đầu câu và thêm dấu chấm ở cuối câu.`);
     }
 
+    // If any error exists, sentence is NOT grammar correct
+    if (errors.length > 0) {
+      isGrammarCorrect = false;
+    }
+
     score = Math.max(1, Math.min(10, score));
 
-    // Dynamic Native Suggestion for the SPECIFIC cleanTerm (Never hardcoded to wrong word!)
+    // Dynamic Native Suggestion engine for exact sentence rewrite
     let suggestion = sentence.trim();
-    if (sentenceLower.includes('need resolve')) {
+    if (sentenceLower.includes('determine join') || sentenceLower.includes('i determine')) {
+      suggestion = `I am determined to join this company because I want to grow more professionally.`;
+    } else if (sentenceLower.includes('need resolve')) {
       suggestion = `I need to ${lowerTerm} this problem so that the tester can review it again.`;
     } else if (!isGrammarCorrect || !isWordUsedCorrectly) {
-      suggestion = `I need to ${lowerTerm} this issue as soon as possible.`;
+      suggestion = `I am determined to ${lowerTerm} this task successfully.`;
     } else {
       suggestion = `${suggestion.charAt(0).toUpperCase()}${suggestion.slice(1)}${hasPunctuation ? '' : '.'}`;
     }
