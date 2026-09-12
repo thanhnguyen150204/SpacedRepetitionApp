@@ -440,9 +440,11 @@ export default function AiSentencePracticePage() {
             {/* Word Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span className="badge badge-purple" style={{ fontSize: 13, fontWeight: 700 }}>
-                  {targetTerm}
-                </span>
+                {(mode === 'custom_writing' || phase === 'checked') && (
+                  <span className="badge badge-purple" style={{ fontSize: 13, fontWeight: 700 }}>
+                    {targetTerm}
+                  </span>
+                )}
                 {currentCard.partOfSpeech && (
                   <span className="badge tag" style={{ textTransform: 'capitalize' }}>
                     {currentCard.partOfSpeech}
@@ -450,25 +452,29 @@ export default function AiSentencePracticePage() {
                 )}
               </div>
 
-              <button
-                className="btn btn-ghost btn-sm btn-icon"
-                title="Nghe phát âm"
-                onClick={() => speakText(targetTerm)}
-                style={{ color: 'var(--accent)' }}
-              >
-                <Volume2 size={20} />
-              </button>
+              {(mode === 'custom_writing' || phase === 'checked') && (
+                <button
+                  className="btn btn-ghost btn-sm btn-icon"
+                  title="Nghe phát âm"
+                  onClick={() => speakText(targetTerm)}
+                  style={{ color: 'var(--accent)' }}
+                >
+                  <Volume2 size={20} />
+                </button>
+              )}
             </div>
 
-            {/* Prompt Definition */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-                Nghĩa từ vựng
+            {/* Prompt Definition: Only show in Mode 1 or when checked */}
+            {(mode === 'custom_writing' || phase === 'checked') && (
+              <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                  Nghĩa từ vựng
+                </div>
+                <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {currentCard.definition}
+                </h2>
               </div>
-              <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)' }}>
-                {currentCard.definition}
-              </h2>
-            </div>
+            )}
 
             {/* ──────── MODE 1: AI WRITING COACH (CUSTOM SENTENCE) ──────── */}
             {mode === 'custom_writing' && (
@@ -637,29 +643,24 @@ export default function AiSentencePracticePage() {
                 {loadingAiExample ? (
                   <div style={{ textAlign: 'center', padding: 30 }}>
                     <div className="animate-spin" style={{ width: 32, height: 32, border: '3px solid var(--accent-glow)', borderTopColor: 'var(--accent)', borderRadius: '50%', margin: '0 auto 12px' }} />
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>AI Gemini đang tạo câu ví dụ mẫu...</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>AI đang tạo câu ví dụ...</div>
                   </div>
                 ) : (
                   <>
                     {/* Blanked Sentence Display */}
                     <div style={{
-                      padding: 20,
+                      padding: 24,
                       background: 'var(--bg-primary)',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border)',
                       textAlign: 'center'
                     }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
-                        Câu ví dụ mẫu AI
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>
+                        Đọc câu tiếng Anh & Điền từ vựng thích hợp vào khoảng trống
                       </div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.4, marginBottom: 8 }}>
-                        "{aiExample?.blankedSentence || `Please fill in the word "${targetTerm}"`}"
+                      <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                        "{aiExample?.blankedSentence || `Please fill in the word "_______"`}"
                       </div>
-                      {aiExample?.vietnameseTranslation && (
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                          Bản dịch: {aiExample.vietnameseTranslation}
-                        </div>
-                      )}
                     </div>
 
                     {phase === 'typing' ? (
