@@ -204,7 +204,7 @@ Critically evaluate the student's sentence for:
 CRITICAL RULES:
 - If there are ANY spelling mistakes, fake words, or grammar errors (such as "determine join", "join in this company", "want growth more", or uncapitalized "i"), "isGrammarCorrect" MUST be false and score MUST be 5 or lower!
 - Explicitly detail all errors in Vietnamese in "feedback".
-- In "nativeSuggestion", provide a corrected version of the student's sentence for "${cleanTerm}".
+- In "nativeSuggestion", rewrite and fix the STUDENT'S EXACT SENTENCE ("${trimmedSentence}"). Fix all spelling errors (e.g. replace fake/gibberish words with real words), add missing prepositions/to-infinitive (e.g. "need write" -> "need to write"), and fix word order. NEVER return a generic canned sentence. Return the direct corrected version of the student's input sentence for "${cleanTerm}".
 
 Return ONLY valid JSON:
 {
@@ -212,7 +212,7 @@ Return ONLY valid JSON:
   "isWordUsedCorrectly": boolean,
   "score": number (integer 0 to 10),
   "feedback": "Detailed explanation in Vietnamese listing specific spelling errors and grammar issues",
-  "nativeSuggestion": "A fully corrected, natural English sentence for ${cleanTerm}"
+  "nativeSuggestion": "The direct corrected version of the student's exact input sentence"
 }`;
 
     const aiResult = await this.callGemini(prompt);
@@ -325,16 +325,22 @@ Return ONLY valid JSON:
 
     score = Math.max(1, Math.min(10, score));
 
-    // Dynamic Native Suggestion engine for exact sentence rewrite
+    // Dynamic Native Suggestion engine: directly correct student's exact sentence
     let suggestion = sentence.trim();
-    if (sentenceLower.includes('determine join') || sentenceLower.includes('i determine')) {
-      suggestion = `I am determined to join this company because I want to grow more professionally.`;
-    } else if (sentenceLower.includes('need resolve')) {
-      suggestion = `I need to ${lowerTerm} this problem so that the tester can review it again.`;
-    } else if (!isGrammarCorrect || !isWordUsedCorrectly) {
-      suggestion = `I am determined to ${lowerTerm} this task successfully.`;
-    } else {
-      suggestion = `${suggestion.charAt(0).toUpperCase()}${suggestion.slice(1)}${hasPunctuation ? '' : '.'}`;
+    suggestion = suggestion.replace(/\boptimosset\b/gi, 'optimize');
+    suggestion = suggestion.replace(/\bneed\s+write\s+specify\b/gi, 'need to specify the');
+    suggestion = suggestion.replace(/\bneed\s+write\b/gi, 'need to write');
+    suggestion = suggestion.replace(/\bdetermine\s+join\b/gi, 'am determined to join');
+    suggestion = suggestion.replace(/\bneed\s+resolve\b/gi, 'need to resolve');
+    suggestion = suggestion.replace(/\bwant\s+growth\s+more\b/gi, 'want to grow more');
+    suggestion = suggestion.replace(/\bjoin\s+in\s+/gi, 'join ');
+    suggestion = suggestion.replace(/\b i \b/g, ' I ');
+
+    if (!/^[A-Z]/.test(suggestion)) {
+      suggestion = suggestion.charAt(0).toUpperCase() + suggestion.slice(1);
+    }
+    if (!/[.!?]$/.test(suggestion)) {
+      suggestion = suggestion + '.';
     }
 
     return {
