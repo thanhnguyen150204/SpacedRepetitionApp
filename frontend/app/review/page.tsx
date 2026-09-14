@@ -245,37 +245,35 @@ function ReviewContent() {
           {/* Decks Grid */}
           <div className="grid-3">
             {dueDecks.map((deck) => (
-              <div
+              <Link
                 key={deck.id}
-                className="deck-card animate-up"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  padding: 24,
-                  border: '1.5px solid var(--border)',
-                  transition: 'all 0.25s ease',
-                  position: 'relative'
-                }}
+                href={`/review?deckId=${deck.id}`}
+                className="review-deck-card animate-up"
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
                     <div style={{
-                      width: 40, height: 40, borderRadius: 10,
-                      background: 'rgba(225,29,72,0.1)', color: 'var(--rose)',
+                      width: 42, height: 42, borderRadius: 12,
+                      background: 'rgba(225,29,72,0.14)', color: '#e11d48',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                     }}>
-                      <BookOpen size={20} />
+                      <BookOpen size={21} />
                     </div>
                     <span className="badge" style={{
-                      background: 'rgba(225,29,72,0.12)', color: 'var(--rose)',
-                      fontWeight: 700, border: '1px solid rgba(225,29,72,0.3)', padding: '4px 10px'
+                      background: 'linear-gradient(135deg, #e11d48, #f43f5e)',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      border: 'none',
+                      padding: '5px 12px',
+                      borderRadius: '20px',
+                      boxShadow: '0 2px 8px rgba(225,29,72,0.25)',
+                      fontSize: '12px'
                     }}>
                       🔥 {deck.dueCount} từ cần ôn
                     </span>
                   </div>
 
-                  <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.3 }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.3 }}>
                     {deck.name}
                   </h3>
 
@@ -297,15 +295,25 @@ function ReviewContent() {
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Layers size={13} /> Tổng bài học: {deck.totalCards} từ vựng
                   </div>
-                  <Link
-                    href={`/review?deckId=${deck.id}`}
-                    className="btn btn-primary"
-                    style={{ width: '100%', justifyContent: 'center', gap: 8, padding: '12px 16px' }}
+                  <div
+                    className="btn"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      gap: 8,
+                      padding: '12px 16px',
+                      background: 'linear-gradient(135deg, #e11d48, #f43f5e)',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      border: 'none',
+                      borderRadius: 'var(--radius-sm)',
+                      boxShadow: '0 4px 12px rgba(225,29,72,0.25)'
+                    }}
                   >
                     <Play size={15} /> Ôn bộ này ({deck.dueCount} từ)
-                  </Link>
+                  </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </main>
