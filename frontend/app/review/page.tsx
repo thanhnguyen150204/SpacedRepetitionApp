@@ -292,25 +292,8 @@ function ReviewContent() {
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Layers size={13} /> Tổng bài học: {deck.totalCards} từ vựng
-                  </div>
-                  <div
-                    className="btn"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'center',
-                      gap: 8,
-                      padding: '12px 16px',
-                      background: 'linear-gradient(135deg, #e11d48, #f43f5e)',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      boxShadow: '0 4px 12px rgba(225,29,72,0.25)'
-                    }}
-                  >
-                    <Play size={15} /> Ôn bộ này ({deck.dueCount} từ)
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Layers size={14} /> Tổng bài học: {deck.totalCards} từ vựng
                   </div>
                 </div>
               </Link>
