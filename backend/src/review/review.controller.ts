@@ -13,6 +13,11 @@ export class ReviewController {
     return this.reviewService.getDueCards(req.user.id, deckId);
   }
 
+  @Get('due-summary')
+  getDueSummary(@Request() req: any) {
+    return this.reviewService.getDueDecks(req.user.id);
+  }
+
   @Get('user-states')
   getUserStates(@Request() req: any, @Query('cardIds') cardIdsStr?: string) {
     const cardIds = cardIdsStr ? cardIdsStr.split(',').filter(Boolean) : [];

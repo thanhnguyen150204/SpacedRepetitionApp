@@ -18,6 +18,43 @@ export class ReviewService {
     private cardRepo: Repository<VocabularyCard>,
   ) { }
 
+  /** Get summary of due cards grouped by deck for a specific user */
+  async getDueDecks(userId: string): Promise<any[]> {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const rawDecks = await this.cardReviewRepo
+      .createQueryBuilder('cr')
+      .innerJoin('cr.card', 'card')
+      .innerJoin('card.deck', 'deck')
+      .select('deck.id', 'id')
+      .addSelect('deck.name', 'name')
+      .addSelect('deck.description', 'description')
+      .addSelect('deck.cover_image', 'coverImage')
+      .addSelect('deck.total_cards', 'totalCards')
+      .addSelect('COUNT(cr.id)', 'dueCount')
+      .where('cr.user_id = :userId', { userId })
+      .andWhere('cr.next_review_date <= :today', { today })
+      .andWhere(
+        '(cr.last_reviewed_at IS NOT NULL OR cr.is_flagged = true OR cr.repetitions > 0)',
+      )
+      .groupBy('deck.id')
+      .addGroupBy('deck.name')
+      .addGroupBy('deck.description')
+      .addGroupBy('deck.cover_image')
+      .addGroupBy('deck.total_cards')
+      .getRawMany();
+
+    return rawDecks.map((d) => ({
+      id: d.id,
+      name: d.name,
+      description: d.description,
+      coverImage: d.coverImage,
+      totalCards: Number(d.totalCards || 0),
+      dueCount: Number(d.dueCount || 0),
+    }));
+  }
+
   /** Get all cards due for review today for a specific user */
   async getDueCards(userId: string, deckId?: string): Promise<any[]> {
     const today = new Date();

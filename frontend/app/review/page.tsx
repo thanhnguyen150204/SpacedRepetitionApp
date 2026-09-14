@@ -1,50 +1,85 @@
 'use client';
 export const dynamic = 'force-dynamic';
 import { useEffect, useState, Suspense, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { getDueCards, submitReview, startSession, endSession } from '@/lib/api';
-import { ArrowLeft, Brain, CheckCircle, XCircle, ChevronRight, RotateCcw, Volume2, Sparkles, Shuffle } from 'lucide-react';
+import { getDueCards, getDueDecksSummary, submitReview, startSession, endSession } from '@/lib/api';
+import { ArrowLeft, Brain, CheckCircle, XCircle, ChevronRight, RotateCcw, Volume2, Sparkles, Shuffle, BookOpen, Play, Layers, Zap } from 'lucide-react';
 import Confetti from '@/components/Confetti';
 
 function ReviewContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const deckId = searchParams.get('deckId') || undefined;
+  const mode = searchParams.get('mode') || undefined;
 
+  // Deck Summary Selection state (when no deckId & mode !== 'all')
+  const [dueDecks, setDueDecks] = useState<any[]>([]);
+  const [loadingDecks, setLoadingDecks] = useState(true);
+
+  // Active Quiz Review state
   const [cards, setCards] = useState<any[]>([]);
   const [index, setIndex] = useState(0);
   const [session, setSession] = useState<any>(null);
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loadingCards, setLoadingCards] = useState(false);
   const [done, setDone] = useState(false);
   const [startTime, setStartTime] = useState(Date.now());
   const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
 
-  useEffect(() => {
-    getDueCards(deckId)
-      .then(async (due) => {
-        setCards(due || []);
-        if (due && due.length > 0) {
-          try {
-            const s = await startSession(deckId || '', 'spaced_review');
-            setSession(s);
-          } catch (err) {
-            console.error('Failed to start session:', err);
-          }
-        }
-      })
-      .catch(console.error)
-      .finally(() => {
-        setLoading(false);
-        setStartTime(Date.now());
-      });
-  }, [deckId]);
+  const isReviewMode = Boolean(deckId || mode === 'all');
 
+  // Load due summary decks list when in selection mode
+  useEffect(() => {
+    if (!isReviewMode) {
+      setLoadingDecks(true);
+      getDueDecksSummary()
+        .then((data) => setDueDecks(data || []))
+        .catch(console.error)
+        .finally(() => setLoadingDecks(false));
+    }
+  }, [isReviewMode]);
+
+  // Load due cards when entering active review mode
+  useEffect(() => {
+    if (isReviewMode) {
+      setLoadingCards(true);
+      setDone(false);
+      setIndex(0);
+      setCorrect(0);
+      setWrong(0);
+      setSelectedOpt(null);
+      setIsAnswered(false);
+
+      getDueCards(deckId)
+        .then(async (due) => {
+          setCards(due || []);
+          if (due && due.length > 0) {
+            try {
+              const s = await startSession(deckId || '', 'spaced_review');
+              setSession(s);
+            } catch (err) {
+              console.error('Failed to start session:', err);
+            }
+          }
+        })
+        .catch(console.error)
+        .finally(() => {
+          setLoadingCards(false);
+          setStartTime(Date.now());
+        });
+    }
+  }, [deckId, mode, isReviewMode]);
+
+  const totalDueCount = dueDecks.reduce((sum, d) => sum + (d.dueCount || 0), 0);
+
+  // Quiz navigation logic
   const currentItem = cards[index];
   const currentCard = currentItem?.card;
+  const currentDeckName = currentCard?.deck?.name || 'Bộ từ vựng';
   const options = currentItem?.options || [];
   const questionType = currentItem?.questionType || 'en_to_vi';
   const targetAnswer = currentItem?.correctAnswer || (questionType === 'en_to_vi' ? currentCard?.definition : currentCard?.term);
@@ -92,7 +127,7 @@ function ReviewContent() {
     } else {
       const newWrong = wrong + 1;
       setWrong(newWrong);
-      // Re-queue card to end of today's session
+      // Re-queue card to end of current review session
       setCards(prev => [...prev, currentItem]);
     }
   }, [isAnswered, currentCard, targetAnswer, startTime, currentItem, session, correct, wrong, handleNextQuestion]);
@@ -103,6 +138,7 @@ function ReviewContent() {
 
   // Keyboard shortcuts (1, 2, 3, 4)
   useEffect(() => {
+    if (!isReviewMode) return;
     const handler = (e: KeyboardEvent) => {
       if (isAnswered) {
         if (e.code === 'Enter' || e.code === 'Space') {
@@ -121,68 +157,236 @@ function ReviewContent() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isAnswered, options, selectedOpt, targetAnswer, handleSelectOption]);
+  }, [isReviewMode, isAnswered, options, selectedOpt, targetAnswer, handleSelectOption, handleNextAfterWrong]);
 
-  if (loading) return (
-    <div className="app-layout">
-      <Sidebar />
-      <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="animate-spin" style={{ width: 40, height: 40, border: '3px solid rgba(99,102,241,0.3)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
-      </main>
-    </div>
-  );
-
-  if (cards.length === 0) return (
-    <div className="app-layout">
-      <Sidebar dueCount={0} />
-      <main className="main-content">
-        <div className="empty-state" style={{ marginTop: 60 }}>
-          <div style={{ fontSize: 72 }}>🎊</div>
-          <div className="empty-title" style={{ fontSize: 24, color: 'var(--green)' }}>Xuất sắc!</div>
-          <div className="empty-desc" style={{ maxWidth: 440, fontSize: 15, lineHeight: 1.6 }}>
-            Hiện tại không có từ nào đến hạn ôn tập cho tài khoản của bạn.
-            Hãy tiếp tục học từ mới hoặc đánh dấu thêm từ để nhắc lại theo chu trình Spaced Repetition!
-          </div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-            <Link href="/dashboard" className="btn btn-primary btn-lg">Về Dashboard</Link>
-            <Link href="/decks" className="btn btn-secondary btn-lg">Xem bộ từ vựng</Link>
-          </div>
+  // ==================== MODE 1: LESSON SELECTION VIEW ====================
+  if (!isReviewMode) {
+    if (loadingDecks) {
+      return (
+        <div className="app-layout">
+          <Sidebar dueCount={totalDueCount} />
+          <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="animate-spin" style={{ width: 40, height: 40, border: '3px solid rgba(99,102,241,0.3)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+          </main>
         </div>
-      </main>
-    </div>
-  );
+      );
+    }
 
-  if (done) return (
-    <div className="app-layout" style={{ position: 'relative' }}>
-      <Confetti />
-      <Sidebar dueCount={0} />
-      <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="card animate-up" style={{ maxWidth: 460, width: '100%', textAlign: 'center', padding: 40 }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🏆</div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Hoàn thành lượt ôn tập!</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
-            Bạn đã xuất sắc hoàn thành lượt ôn tập theo thuật toán Spaced Repetition (SM-2)
-          </p>
-          <div className="grid-2" style={{ marginBottom: 24 }}>
-            <div className="stat-card" style={{ textAlign: 'center' }}>
-              <span className="stat-label">Trả lời Đúng</span>
-              <span className="stat-value" style={{ color: 'var(--green)', fontSize: 36 }}>{correct}</span>
+    if (dueDecks.length === 0) {
+      return (
+        <div className="app-layout">
+          <Sidebar dueCount={0} />
+          <main className="main-content">
+            <div className="empty-state" style={{ marginTop: 60 }}>
+              <div style={{ fontSize: 72 }}>🎊</div>
+              <div className="empty-title" style={{ fontSize: 24, color: 'var(--green)' }}>Xuất sắc!</div>
+              <div className="empty-desc" style={{ maxWidth: 440, fontSize: 15, lineHeight: 1.6 }}>
+                Hiện tại không có từ nào đến hạn ôn tập cho tài khoản của bạn.
+                Hãy tiếp tục học thêm các bộ từ mới hoặc đánh dấu thêm từ để nhắc lại theo chu trình Spaced Repetition!
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                <Link href="/dashboard" className="btn btn-primary btn-lg">Về Dashboard</Link>
+                <Link href="/decks" className="btn btn-secondary btn-lg">Xem bộ từ vựng</Link>
+              </div>
             </div>
-            <div className="stat-card" style={{ textAlign: 'center' }}>
-              <span className="stat-label">Cần xem lại</span>
-              <span className="stat-value" style={{ color: 'var(--rose)', fontSize: 36 }}>{wrong}</span>
-            </div>
-          </div>
-          <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 12, padding: 16, marginBottom: 24, fontSize: 13, color: 'var(--text-secondary)' }}>
-            💡 Các từ trả lời đúng đã được tăng interval hẹn ngày nhắc lại. Các từ trả lời sai sẽ được nhắc lại sau 1 ngày!
-          </div>
-          <Link href="/dashboard" className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center' }}>
-            Về Dashboard
-          </Link>
+          </main>
         </div>
-      </main>
-    </div>
-  );
+      );
+    }
+
+    return (
+      <div className="app-layout">
+        <Sidebar dueCount={totalDueCount} />
+        <main className="main-content animate-fade">
+          {/* Header */}
+          <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                <Brain size={24} color="var(--accent-light)" />
+                <h1 className="page-title" style={{ margin: 0 }}>Ôn tập hôm nay</h1>
+              </div>
+              <p className="page-subtitle">Chọn thẻ bộ từ (Lesson) bạn muốn ôn lại hôm nay thay vì phải học dồn tất cả cùng lúc.</p>
+            </div>
+
+            {totalDueCount > 0 && (
+              <Link href="/review?mode=all" className="btn btn-secondary" style={{ gap: 8 }}>
+                <Zap size={16} color="var(--accent-light)" />
+                Ôn gộp tất cả ({totalDueCount} từ)
+              </Link>
+            )}
+          </div>
+
+          {/* Overview Banner */}
+          <div className="card" style={{
+            marginBottom: 28, padding: '20px 24px',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.05))',
+            border: '1.5px solid rgba(99,102,241,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: 'var(--accent-glow)', color: 'var(--accent-light)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+              }}>
+                <Layers size={22} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>
+                  Bạn có <span style={{ color: 'var(--accent-light)' }}>{dueDecks.length} bài học</span> chứa tổng cộng <span style={{ color: 'var(--rose)' }}>{totalDueCount} từ</span> cần ôn hôm nay
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                  Nhấp vào từng thẻ bộ từ bên dưới để ôn tập riêng biệt từng phần học.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Decks Grid */}
+          <div className="grid-3">
+            {dueDecks.map((deck) => (
+              <div
+                key={deck.id}
+                className="deck-card animate-up"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  padding: 24,
+                  border: '1.5px solid var(--border)',
+                  transition: 'all 0.25s ease',
+                  position: 'relative'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 10,
+                      background: 'rgba(225,29,72,0.1)', color: 'var(--rose)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>
+                      <BookOpen size={20} />
+                    </div>
+                    <span className="badge" style={{
+                      background: 'rgba(225,29,72,0.12)', color: 'var(--rose)',
+                      fontWeight: 700, border: '1px solid rgba(225,29,72,0.3)', padding: '4px 10px'
+                    }}>
+                      🔥 {deck.dueCount} từ cần ôn
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.3 }}>
+                    {deck.name}
+                  </h3>
+
+                  {deck.description ? (
+                    <p style={{
+                      fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16,
+                      overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+                    }}>
+                      {deck.description}
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, fontStyle: 'italic' }}>
+                      Bộ từ vựng chứa các từ bạn đã học & đánh dấu cần ôn lại.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Layers size={13} /> Tổng bài học: {deck.totalCards} từ vựng
+                  </div>
+                  <Link
+                    href={`/review?deckId=${deck.id}`}
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', gap: 8, padding: '12px 16px' }}
+                  >
+                    <Play size={15} /> Ôn bộ này ({deck.dueCount} từ)
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ==================== MODE 2: ACTIVE LESSON QUIZ REVIEW ====================
+  if (loadingCards) {
+    return (
+      <div className="app-layout">
+        <Sidebar dueCount={totalDueCount} />
+        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="animate-spin" style={{ width: 40, height: 40, border: '3px solid rgba(99,102,241,0.3)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+        </main>
+      </div>
+    );
+  }
+
+  if (cards.length === 0) {
+    return (
+      <div className="app-layout">
+        <Sidebar dueCount={0} />
+        <main className="main-content">
+          <div className="empty-state" style={{ marginTop: 60 }}>
+            <div style={{ fontSize: 72 }}>🎉</div>
+            <div className="empty-title" style={{ fontSize: 24, color: 'var(--green)' }}>Đã hoàn thành!</div>
+            <div className="empty-desc" style={{ maxWidth: 440, fontSize: 15, lineHeight: 1.6 }}>
+              Không có từ nào đến hạn ôn tập trong phần học này.
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+              <Link href="/review" className="btn btn-primary btn-lg">Chọn bộ từ khác</Link>
+              <Link href="/dashboard" className="btn btn-secondary btn-lg">Về Dashboard</Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (done) {
+    return (
+      <div className="app-layout" style={{ position: 'relative' }}>
+        <Confetti />
+        <Sidebar dueCount={0} />
+        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card animate-up" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 40 }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>🏆</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6 }}>Hoàn thành bài ôn tập!</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>
+              {mode === 'all' ? 'Bạn đã ôn tập gộp tất cả các bài' : `Bài học: ${currentDeckName}`}
+            </p>
+
+            <div className="grid-2" style={{ marginBottom: 24 }}>
+              <div className="stat-card" style={{ textAlign: 'center' }}>
+                <span className="stat-label">Trả lời Đúng</span>
+                <span className="stat-value" style={{ color: 'var(--green)', fontSize: 36 }}>{correct}</span>
+              </div>
+              <div className="stat-card" style={{ textAlign: 'center' }}>
+                <span className="stat-label">Cần xem lại</span>
+                <span className="stat-value" style={{ color: 'var(--rose)', fontSize: 36 }}>{wrong}</span>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 12, padding: 16, marginBottom: 24, fontSize: 13, color: 'var(--text-secondary)', textAlign: 'left' }}>
+              💡 Các từ trả lời đúng đã được tăng khoảng cách ngày hẹn nhắc lại (SM-2). Các từ trả lời chưa đúng sẽ được hẹn ôn lại sau 1 ngày!
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Link href="/review" className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center' }}>
+                <ArrowLeft size={18} /> Chọn bộ từ khác để ôn
+              </Link>
+              <Link href="/dashboard" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
+                Về Dashboard
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const progress = Math.min(100, ((index) / cards.length) * 100);
 
@@ -193,15 +397,17 @@ function ReviewContent() {
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
           {/* Top Header Navigation */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
-            <Link href="/dashboard" className="btn btn-ghost btn-sm btn-icon">
+            <Link href="/review" className="btn btn-ghost btn-sm btn-icon" title="Quay lại chọn bộ từ">
               <ArrowLeft size={18} />
             </Link>
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <Brain size={18} color="var(--accent-light)" />
-                <span style={{ fontWeight: 700 }}>Ôn tập Spaced Repetition</span>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>
+                  {mode === 'all' ? 'Ôn tập tất cả bài' : currentDeckName}
+                </span>
                 <span className="badge badge-purple" style={{ gap: 4 }}>
-                  <Shuffle size={12} /> Đảo chiều ngẫu nhiên
+                  <Shuffle size={12} /> Đảo ngẫu nhiên
                 </span>
                 <span className="badge badge-accent">{index + 1} / {cards.length}</span>
               </div>
