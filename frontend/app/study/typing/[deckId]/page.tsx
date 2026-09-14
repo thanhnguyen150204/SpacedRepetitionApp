@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCards, startSession, endSession, submitReview, getDeck } from '@/lib/api';
-import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, ArrowRight, CornerDownLeft, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, ArrowRight, CornerDownLeft, ShieldAlert, Target } from 'lucide-react';
 import Confetti from '@/components/Confetti';
 
 interface CharComparison {
@@ -94,7 +94,7 @@ export default function TypingPracticePage() {
         inputRef.current?.focus();
       });
     }
-  }, [index, phase, strictMode]);
+  }, [index, phase]);
 
   const currentCard = cards[index];
   const targetTerm = currentCard ? cleanWordTerm(currentCard.term) : '';
@@ -219,8 +219,8 @@ export default function TypingPracticePage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}>
-        <div className="animate-spin" style={{ width: 40, height: 40, border: '3px solid rgba(79,70,229,0.3)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(209, 250, 229, 0.75))' }}>
+        <div className="animate-spin" style={{ width: 40, height: 40, border: '3px solid rgba(13,148,136,0.3)', borderTopColor: 'var(--teal)', borderRadius: '50%' }} />
       </div>
     );
   }
@@ -246,7 +246,7 @@ export default function TypingPracticePage() {
     const accuracy = Math.round((correct / (correct + wrong || 1)) * 100);
 
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-primary)', padding: 20, position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(209, 250, 229, 0.75))', padding: 20, position: 'relative' }}>
         <Confetti />
         <div className="card animate-up" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 36, zIndex: 10 }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>{accuracy >= 80 ? '🎯' : '💪'}</div>
@@ -349,8 +349,7 @@ export default function TypingPracticePage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 16,
-        flexWrap: 'wrap'
+        gap: 16
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link href={`/decks/${deckId}`} className="btn btn-ghost btn-sm btn-icon" title="Trở về">
@@ -358,58 +357,10 @@ export default function TypingPracticePage() {
           </Link>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Keyboard size={16} color="var(--accent)" /> Luyện Gõ Từ
+              <Keyboard size={16} color="var(--teal)" /> Luyện Gõ Từ
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{deck?.name}</div>
           </div>
-        </div>
-
-        {/* Mode Selector Pill Toggle */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          background: 'var(--bg-primary)',
-          padding: 3,
-          borderRadius: 10,
-          border: '1px solid var(--border)'
-        }}>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => { setStrictMode(false); setStrictError(false); }}
-            style={{
-              borderRadius: 7,
-              padding: '5px 12px',
-              fontSize: 12,
-              fontWeight: 700,
-              background: !strictMode ? 'var(--bg-card)' : 'transparent',
-              color: !strictMode ? 'var(--accent)' : 'var(--text-secondary)',
-              border: !strictMode ? '1px solid var(--border)' : 'none',
-              boxShadow: !strictMode ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            📖 Luyện tập thường
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => { setStrictMode(true); setStrictError(false); }}
-            style={{
-              borderRadius: 7,
-              padding: '5px 12px',
-              fontSize: 12,
-              fontWeight: strictMode ? 800 : 600,
-              background: strictMode ? 'linear-gradient(135deg, #e11d48, #f43f5e)' : 'transparent',
-              color: strictMode ? '#ffffff' : 'var(--rose)',
-              border: 'none',
-              boxShadow: strictMode ? '0 2px 10px rgba(225,29,72,0.3)' : 'none',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            🎯 Test (Gõ đúng mới qua)
-          </button>
         </div>
 
         {/* Progress pill & scores */}
@@ -429,11 +380,67 @@ export default function TypingPracticePage() {
               <span>{index + 1}/{cards.length}</span>
             </div>
             <div style={{ width: '100%', height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ width: `${progressPct}%`, height: '100%', background: 'linear-gradient(90deg, var(--accent), var(--purple))', transition: 'width 0.3s ease' }} />
+              <div style={{ width: `${progressPct}%`, height: '100%', background: 'linear-gradient(90deg, var(--teal), var(--accent))', transition: 'width 0.3s ease' }} />
             </div>
           </div>
         </div>
       </header>
+
+      {/* Mode Selector Tabs - Perfectly smooth & centered like AI sentence practice */}
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 20 }}>
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: 4,
+          borderRadius: 'var(--radius)',
+          border: '1px solid var(--border)',
+          display: 'flex',
+          gap: 6,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
+        }}>
+          <button
+            type="button"
+            onClick={() => { setStrictMode(false); setStrictError(false); }}
+            style={{
+              padding: '8px 20px',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              background: !strictMode ? 'var(--teal)' : 'transparent',
+              color: !strictMode ? '#ffffff' : 'var(--text-secondary)',
+              boxShadow: !strictMode ? '0 2px 8px rgba(13,148,136,0.3)' : 'none'
+            }}
+          >
+            <Keyboard size={15} /> Luyện tập
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStrictMode(true); setStrictError(false); }}
+            style={{
+              padding: '8px 20px',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              background: strictMode ? 'linear-gradient(135deg, #e11d48, #f43f5e)' : 'transparent',
+              color: strictMode ? '#ffffff' : 'var(--text-secondary)',
+              boxShadow: strictMode ? '0 2px 8px rgba(225,29,72,0.3)' : 'none'
+            }}
+          >
+            <Target size={15} /> Test gõ
+          </button>
+        </div>
+      </div>
 
       {/* Main Practice Content */}
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -457,7 +464,7 @@ export default function TypingPracticePage() {
                 className="btn btn-ghost btn-sm btn-icon"
                 title="Nghe phát âm"
                 onClick={() => speakWord(targetTerm)}
-                style={{ color: 'var(--accent)' }}
+                style={{ color: 'var(--teal)' }}
               >
                 <Volume2 size={20} />
               </button>
@@ -472,7 +479,7 @@ export default function TypingPracticePage() {
                 {currentCard.definition}
               </h2>
               {currentCard.phonetic && (
-                <div style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 500, marginTop: 6 }}>
+                <div style={{ fontSize: 15, color: 'var(--teal)', fontWeight: 500, marginTop: 6 }}>
                   {currentCard.phonetic}
                 </div>
               )}
@@ -507,8 +514,8 @@ export default function TypingPracticePage() {
                         textAlign: 'center',
                         letterSpacing: 1,
                         padding: '16px 20px',
-                        borderColor: strictError ? 'var(--rose)' : (strictSuccess ? 'var(--green)' : (userInput ? 'var(--accent)' : 'var(--border)')),
-                        boxShadow: strictError ? '0 0 16px rgba(225,29,72,0.3)' : (strictSuccess ? '0 0 16px rgba(5,150,105,0.3)' : (userInput ? 'var(--shadow-glow)' : 'none')),
+                        borderColor: strictError ? 'var(--rose)' : (strictSuccess ? 'var(--green)' : (userInput ? 'var(--teal)' : 'var(--border)')),
+                        boxShadow: strictError ? '0 0 16px rgba(225,29,72,0.3)' : (strictSuccess ? '0 0 16px rgba(5,150,105,0.3)' : (userInput ? '0 0 12px rgba(13,148,136,0.2)' : 'none')),
                         transition: 'all 0.2s ease',
                       }}
                       placeholder="Gõ từ vựng tiếng Anh..."
@@ -537,7 +544,7 @@ export default function TypingPracticePage() {
                     </div>
                   </div>
 
-                  {/* Strict Mode Error Alert (No hint, just clean warning) */}
+                  {/* Strict Mode Error Alert */}
                   {strictMode && strictError && (
                     <div className="animate-up" style={{
                       marginTop: 14, padding: '10px 16px', borderRadius: 'var(--radius-sm)',
@@ -564,7 +571,7 @@ export default function TypingPracticePage() {
 
                   <div style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--text-muted)' }}>
                     {strictMode ? (
-                      <span>🎯 Chế độ Test: Nhập <strong style={{ color: 'var(--rose)' }}>chính xác từ vựng</strong> và bấm <strong>Enter</strong> để qua câu</span>
+                      <span>🎯 Chế độ Test gõ: Nhập <strong style={{ color: 'var(--rose)' }}>chính xác từ vựng</strong> và bấm <strong>Enter</strong> để qua câu</span>
                     ) : (
                       <span>Nhập từ và bấm <strong style={{ color: 'var(--text-primary)' }}>Enter</strong> để kiểm tra</span>
                     )}
@@ -658,14 +665,14 @@ export default function TypingPracticePage() {
                     <div style={{
                       textAlign: 'center',
                       padding: '12px 16px',
-                      background: 'var(--accent-glow)',
+                      background: 'rgba(13,148,136,0.1)',
                       borderRadius: 'var(--radius-sm)',
-                      border: '1px solid rgba(79,70,229,0.2)'
+                      border: '1px solid rgba(13,148,136,0.25)'
                     }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 2 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--teal)', textTransform: 'uppercase', marginBottom: 2 }}>
                         Từ đúng chuẩn:
                       </div>
-                      <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--accent)' }}>
+                      <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--teal)' }}>
                         {targetTerm}
                       </div>
                     </div>
@@ -679,7 +686,9 @@ export default function TypingPracticePage() {
                       style={{
                         width: '100%',
                         justifyContent: 'center',
-                        boxShadow: '0 4px 20px var(--accent-glow)',
+                        background: 'linear-gradient(135deg, #0d9488, #10b981)',
+                        border: 'none',
+                        boxShadow: '0 4px 20px rgba(13,148,136,0.3)',
                       }}
                     >
                       Bấm Enter ↵ để sang từ tiếp theo <ArrowRight size={18} />
