@@ -299,7 +299,7 @@ export default function TimedTestPage() {
   if (timeRatio < 0.2) timerColor = 'var(--rose)';
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(254, 215, 170, 0.75))', display: 'flex', flexDirection: 'column' }}>
       {/* Top Header */}
       <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 16 }}>
         <Link href={`/public-decks`} className="btn btn-ghost btn-sm btn-icon">

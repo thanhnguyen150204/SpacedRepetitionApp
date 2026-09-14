@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCards, startSession, endSession, submitReview, getDeck } from '@/lib/api';
-import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, ArrowRight, CornerDownLeft, Target, ShieldAlert, Sparkles, HelpCircle } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, ArrowRight, CornerDownLeft, ShieldAlert } from 'lucide-react';
 import Confetti from '@/components/Confetti';
 
 interface CharComparison {
@@ -57,12 +57,11 @@ export default function TypingPracticePage() {
   const [userInput, setUserInput] = useState('');
   const [phase, setPhase] = useState<'typing' | 'checked'>('typing');
   
-  // Mode Selection: Standard vs Strict Test Mode (Gõ đúng mới qua)
+  // Mode Selection: Standard Practice vs Strict Test Mode (Gõ đúng mới qua)
   const [strictMode, setStrictMode] = useState<boolean>(false);
   const [isShaking, setIsShaking] = useState<boolean>(false);
-  const [strictError, setStrictError] = useState<string | null>(null);
+  const [strictError, setStrictError] = useState<boolean>(false);
   const [strictSuccess, setStrictSuccess] = useState<boolean>(false);
-  const [showHint, setShowHint] = useState<boolean>(false);
 
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
@@ -138,9 +137,8 @@ export default function TypingPracticePage() {
 
   // INSTANT NEXT: Advance to next question
   const handleNext = useCallback(() => {
-    setStrictError(null);
+    setStrictError(false);
     setStrictSuccess(false);
-    setShowHint(false);
 
     if (index + 1 >= cards.length) {
       if (session) {
@@ -165,16 +163,16 @@ export default function TypingPracticePage() {
       if (isExact) {
         setCorrect(c => c + 1);
         setStrictSuccess(true);
-        setStrictError(null);
+        setStrictError(false);
         speakWord(targetTerm);
 
-        // Ultra-fast 400ms success feedback pause before auto-advancing
+        // Fast 350ms success feedback pause before auto-advancing
         setTimeout(() => {
           handleNext();
-        }, 400);
+        }, 350);
       } else {
         setWrong(w => w + 1);
-        setStrictError(`Chưa chính xác! Bạn phải gõ đúng: "${targetTerm}" mới được qua từ tiếp theo.`);
+        setStrictError(true);
         setIsShaking(true);
         setTimeout(() => setIsShaking(false), 450);
 
@@ -303,7 +301,7 @@ export default function TypingPracticePage() {
                 setPhase('typing');
                 setCorrect(0);
                 setWrong(0);
-                setStrictError(null);
+                setStrictError(false);
                 setStrictSuccess(false);
                 setDone(false);
               }}
@@ -331,7 +329,7 @@ export default function TypingPracticePage() {
     : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(209, 250, 229, 0.75))', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @keyframes shakeKeyframe {
           0%, 100% { transform: translateX(0); }
@@ -379,7 +377,7 @@ export default function TypingPracticePage() {
           <button
             type="button"
             className="btn btn-sm"
-            onClick={() => { setStrictMode(false); setStrictError(null); }}
+            onClick={() => { setStrictMode(false); setStrictError(false); }}
             style={{
               borderRadius: 7,
               padding: '5px 12px',
@@ -388,7 +386,8 @@ export default function TypingPracticePage() {
               background: !strictMode ? 'var(--bg-card)' : 'transparent',
               color: !strictMode ? 'var(--accent)' : 'var(--text-secondary)',
               border: !strictMode ? '1px solid var(--border)' : 'none',
-              boxShadow: !strictMode ? '0 2px 6px rgba(0,0,0,0.05)' : 'none'
+              boxShadow: !strictMode ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
+              transition: 'all 0.2s ease'
             }}
           >
             📖 Luyện tập thường
@@ -396,7 +395,7 @@ export default function TypingPracticePage() {
           <button
             type="button"
             className="btn btn-sm"
-            onClick={() => { setStrictMode(true); setStrictError(null); }}
+            onClick={() => { setStrictMode(true); setStrictError(false); }}
             style={{
               borderRadius: 7,
               padding: '5px 12px',
@@ -405,7 +404,8 @@ export default function TypingPracticePage() {
               background: strictMode ? 'linear-gradient(135deg, #e11d48, #f43f5e)' : 'transparent',
               color: strictMode ? '#ffffff' : 'var(--rose)',
               border: 'none',
-              boxShadow: strictMode ? '0 2px 10px rgba(225,29,72,0.3)' : 'none'
+              boxShadow: strictMode ? '0 2px 10px rgba(225,29,72,0.3)' : 'none',
+              transition: 'all 0.2s ease'
             }}
           >
             🎯 Test (Gõ đúng mới qua)
@@ -440,21 +440,8 @@ export default function TypingPracticePage() {
         <div style={{ width: '100%', maxWidth: 640 }}>
           <div className="card animate-up" style={{ padding: 32, position: 'relative' }}>
             
-            {/* Mode Banner Indicator */}
-            {strictMode && (
-              <div style={{
-                position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
-                background: 'linear-gradient(135deg, #e11d48, #f43f5e)',
-                color: '#ffffff', fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
-                letterSpacing: 1, padding: '4px 14px', borderRadius: 20,
-                boxShadow: '0 4px 12px rgba(225,29,72,0.3)', display: 'flex', alignItems: 'center', gap: 6
-              }}>
-                <Target size={13} /> Chế độ Test: Gõ chính xác mới qua từ tiếp theo
-              </div>
-            )}
-
             {/* Top Info Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, marginTop: strictMode ? 8 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {currentCard.partOfSpeech && (
                   <span className="badge badge-accent" style={{ textTransform: 'capitalize' }}>
@@ -526,7 +513,7 @@ export default function TypingPracticePage() {
                       }}
                       placeholder="Gõ từ vựng tiếng Anh..."
                       value={userInput}
-                      onChange={e => { setUserInput(e.target.value); if (strictError) setStrictError(null); }}
+                      onChange={e => { setUserInput(e.target.value); if (strictError) setStrictError(false); }}
                       onKeyDown={handleKeyDown}
                       autoFocus
                     />
@@ -550,49 +537,28 @@ export default function TypingPracticePage() {
                     </div>
                   </div>
 
-                  {/* Strict Mode Error Alert Banner */}
+                  {/* Strict Mode Error Alert (No hint, just clean warning) */}
                   {strictMode && strictError && (
                     <div className="animate-up" style={{
-                      marginTop: 14, padding: '12px 16px', borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(225, 29, 72, 0.1)', border: '1.5px solid rgba(225, 29, 72, 0.35)',
+                      marginTop: 14, padding: '10px 16px', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(225, 29, 72, 0.08)', border: '1px solid rgba(225, 29, 72, 0.25)',
                       color: 'var(--rose)', fontSize: 13, fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <ShieldAlert size={18} />
-                        <span>{strictError}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setShowHint(!showHint)}
-                        style={{ fontSize: 11, textDecoration: 'underline', padding: '2px 6px', color: 'var(--rose)' }}
-                      >
-                        <HelpCircle size={13} /> {showHint ? 'Ẩn đáp án' : 'Xem đáp án'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Strict Mode Hint Display */}
-                  {strictMode && showHint && (
-                    <div className="animate-fade" style={{
-                      marginTop: 10, textAlign: 'center', padding: '8px 12px',
-                      background: 'var(--accent-glow)', borderRadius: 'var(--radius-sm)',
-                      border: '1px solid rgba(79,70,229,0.2)', fontSize: 13, fontWeight: 700, color: 'var(--accent)'
-                    }}>
-                      💡 Từ đúng chuẩn: <strong>"{targetTerm}"</strong> (Gõ lại chính xác từ này để qua)
+                      <ShieldAlert size={16} />
+                      <span>Chưa chính xác! Hãy gõ lại từ này.</span>
                     </div>
                   )}
 
                   {/* Strict Mode Success Toast */}
                   {strictMode && strictSuccess && (
                     <div className="animate-up" style={{
-                      marginTop: 14, padding: '12px 16px', borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(5, 150, 105, 0.12)', border: '1.5px solid rgba(5, 150, 105, 0.35)',
-                      color: 'var(--green)', fontSize: 14, fontWeight: 700,
+                      marginTop: 14, padding: '10px 16px', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(5, 150, 105, 0.12)', border: '1px solid rgba(5, 150, 105, 0.35)',
+                      color: 'var(--green)', fontSize: 13, fontWeight: 700,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                     }}>
-                      <CheckCircle2 size={18} /> Chính xác 100%! Đang chuyển từ tiếp theo...
+                      <CheckCircle2 size={16} /> Chính xác! Đang chuyển từ tiếp theo...
                     </div>
                   )}
 

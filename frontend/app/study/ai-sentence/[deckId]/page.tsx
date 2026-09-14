@@ -365,7 +365,7 @@ export default function AiSentencePracticePage() {
   const progressPct = Math.round(((index + 1) / cards.length) * 100);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, rgba(253, 242, 248, 0.95), rgba(250, 232, 255, 0.75))', display: 'flex', flexDirection: 'column' }}>
       {/* Header Bar */}
       <header style={{
         padding: '16px 32px',

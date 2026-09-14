@@ -199,7 +199,7 @@ function PublicDecksContent() {
                     background: 'var(--bg-card)', border: '1px solid var(--border)', transition: 'all 0.2s ease',
                   }}
                 >
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(147,51,234,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--purple)', flexShrink: 0 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(217,70,239,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d946ef', flexShrink: 0 }}>
                     <Bot size={22} />
                   </div>
                   <div>

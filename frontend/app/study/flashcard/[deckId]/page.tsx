@@ -121,7 +121,7 @@ export default function FlashcardPage() {
   const progress = ((index) / cards.length) * 100;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(224, 231, 255, 0.75))', display: 'flex', flexDirection: 'column' }}>
       {/* Top Bar */}
       <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 16 }}>
         <Link href={`/decks/${deckId}`} className="btn btn-ghost btn-sm btn-icon">
