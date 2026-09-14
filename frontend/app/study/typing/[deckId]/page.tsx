@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCards, startSession, endSession, submitReview, getDeck } from '@/lib/api';
-import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, ArrowRight, CornerDownLeft } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Keyboard, CheckCircle2, XCircle, Volume2, ArrowRight, CornerDownLeft, Target, ShieldAlert, Sparkles, HelpCircle } from 'lucide-react';
 import Confetti from '@/components/Confetti';
 
 interface CharComparison {
@@ -13,13 +13,38 @@ interface CharComparison {
   isMatch: boolean;
 }
 
-// Clean term: Filter out "(type of word)" e.g., (v.), (n.), (adj.), (adv.), (phr.), (prep.) and trim whitespace from both ends
+// Ultra-robust Clean term algorithm: Handles all closed & unclosed parenthetical annotations (e.g. resolve (v. or resolve (v.), [n.], etc.)
 function cleanWordTerm(rawTerm: string): string {
   if (!rawTerm) return '';
-  // Remove parenthetical annotations like (v.), (n.), (adj.), (adv.), (phrase), (prep.), (v), (n), etc.
-  let cleaned = rawTerm.replace(/\s*\([^)]*\)/g, '');
-  cleaned = cleaned.trim();
-  return cleaned || rawTerm.trim();
+  let str = rawTerm.trim();
+
+  // 1. Remove complete parenthetical or bracketed expressions: (v.), [n.], etc.
+  str = str.replace(/\([^)]*\)/g, '');
+  str = str.replace(/\[[^\]]*\]/g, '');
+
+  // 2. Remove unclosed parenthetical or bracketed expressions at end of string: (v., (v, (n., (adj, (phrase...
+  str = str.replace(/\s*\([^)]*$/g, '');
+  str = str.replace(/\s*\[[^\]]*$/g, '');
+
+  // 3. Remove leading unclosed or closed parenthetical remnants at start of string: (v. ), (n) ...
+  str = str.replace(/^\s*\([^)]*\)\s*/g, '');
+  str = str.replace(/^\s*\([^\)]*$/g, '');
+
+  // 4. Remove standalone part-of-speech annotations at the end or start (e.g., ", v.", "- n.", "/ adj", "v.")
+  const posRegexEnd = /\s*[\/,;:\-\(]?\s*\b(v|n|adj|adv|prep|phr|phrase|conj|pron|num|vi|vt|noun|verb|adjective|adverb)\b[\.\)\s\/,\-]*$/gi;
+  str = str.replace(posRegexEnd, '');
+
+  const posRegexStart = /^\s*[\/,;:\-\(]?\s*\b(v|n|adj|adv|prep|phr|phrase|conj|pron|num|vi|vt|noun|verb|adjective|adverb)\b[\.\)\s\/,\-]+\s*/gi;
+  str = str.replace(posRegexStart, '');
+
+  // 5. Trim leading and trailing punctuation (commas, dots, slashes, colons, dashes, parentheses)
+  str = str.replace(/^[\s,/\-\(\)\[\]\.\;:!]+|[\s,/\-\(\)\[\]\.\;:!]+$/g, '');
+
+  // 6. Normalize internal whitespace
+  str = str.replace(/\s+/g, ' ').trim();
+
+  // Fallback: If cleaning somehow stripped everything, return original trimmed string
+  return str || rawTerm.trim();
 }
 
 export default function TypingPracticePage() {
@@ -32,6 +57,13 @@ export default function TypingPracticePage() {
   const [userInput, setUserInput] = useState('');
   const [phase, setPhase] = useState<'typing' | 'checked'>('typing');
   
+  // Mode Selection: Standard vs Strict Test Mode (Gõ đúng mới qua)
+  const [strictMode, setStrictMode] = useState<boolean>(false);
+  const [isShaking, setIsShaking] = useState<boolean>(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
+  const [strictSuccess, setStrictSuccess] = useState<boolean>(false);
+  const [showHint, setShowHint] = useState<boolean>(false);
+
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -46,7 +78,6 @@ export default function TypingPracticePage() {
       .then(async ([d, c]) => {
         setDeck(d);
         if (c && c.length > 0) {
-          // Shuffle cards for random practice order
           const shuffled = [...c].sort(() => Math.random() - 0.5);
           setCards(shuffled);
           try {
@@ -64,7 +95,7 @@ export default function TypingPracticePage() {
         inputRef.current?.focus();
       });
     }
-  }, [index, phase]);
+  }, [index, phase, strictMode]);
 
   const currentCard = cards[index];
   const targetTerm = currentCard ? cleanWordTerm(currentCard.term) : '';
@@ -105,43 +136,74 @@ export default function TypingPracticePage() {
     return { comparisons, isExact };
   };
 
-  // INSTANT CHECK: Update state immediately (0ms delay), trigger review submit asynchronously in background
-  const handleCheck = useCallback(() => {
-    if (!currentCard || !userInput.trim()) return;
-
-    const { isExact } = getCharComparison(currentCard.term, userInput);
-
-    // Update UI state INSTANTLY
-    if (isExact) {
-      setCorrect(c => c + 1);
-    } else {
-      setWrong(w => w + 1);
-      // Non-blocking background API submission for Spaced Repetition queue
-      if (currentCard.id) {
-        submitReview({ cardId: currentCard.id, quality: 0, sessionId: session?.id }).catch(err => {
-          console.error('Failed to submit card review asynchronously:', err);
-        });
-      }
-    }
-
-    setPhase('checked');
-    speakWord(targetTerm);
-  }, [currentCard, userInput, session, targetTerm]);
-
-  // INSTANT NEXT: Advance to next question immediately without waiting for API calls
+  // INSTANT NEXT: Advance to next question
   const handleNext = useCallback(() => {
+    setStrictError(null);
+    setStrictSuccess(false);
+    setShowHint(false);
+
     if (index + 1 >= cards.length) {
       if (session) {
         endSession(session.id, correct, wrong).catch(console.error);
       }
       setDone(true);
     } else {
-      // Instant switch
       setIndex(i => i + 1);
       setUserInput('');
       setPhase('typing');
     }
   }, [index, cards.length, session, correct, wrong]);
+
+  // CHECK LOGIC (Supports both Practice & Strict Test Modes)
+  const handleCheck = useCallback(() => {
+    if (!currentCard || !userInput.trim()) return;
+
+    const { isExact } = getCharComparison(currentCard.term, userInput);
+
+    // MODE A: STRICT TEST MODE (Gõ đúng mới được qua từ tiếp theo)
+    if (strictMode) {
+      if (isExact) {
+        setCorrect(c => c + 1);
+        setStrictSuccess(true);
+        setStrictError(null);
+        speakWord(targetTerm);
+
+        // Ultra-fast 400ms success feedback pause before auto-advancing
+        setTimeout(() => {
+          handleNext();
+        }, 400);
+      } else {
+        setWrong(w => w + 1);
+        setStrictError(`Chưa chính xác! Bạn phải gõ đúng: "${targetTerm}" mới được qua từ tiếp theo.`);
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 450);
+
+        if (currentCard.id) {
+          submitReview({ cardId: currentCard.id, quality: 0, sessionId: session?.id }).catch(console.error);
+        }
+
+        // Keep input focused and selected for quick re-typing
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }
+      return;
+    }
+
+    // MODE B: STANDARD PRACTICE MODE (Cho xem so sánh từng chữ & bấm Enter qua tiếp)
+    if (isExact) {
+      setCorrect(c => c + 1);
+    } else {
+      setWrong(w => w + 1);
+      if (currentCard.id) {
+        submitReview({ cardId: currentCard.id, quality: 0, sessionId: session?.id }).catch(console.error);
+      }
+    }
+
+    setPhase('checked');
+    speakWord(targetTerm);
+  }, [currentCard, userInput, session, targetTerm, strictMode, handleNext]);
 
   // Keyboard handler for Enter key press logic
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -183,14 +245,16 @@ export default function TypingPracticePage() {
   // Done screen
   if (done) {
     const total = cards.length;
-    const accuracy = Math.round((correct / total) * 100);
+    const accuracy = Math.round((correct / (correct + wrong || 1)) * 100);
 
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-primary)', padding: 20, position: 'relative' }}>
         <Confetti />
         <div className="card animate-up" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 36, zIndex: 10 }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>{accuracy >= 80 ? '🎯' : '💪'}</div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6 }}>Hoàn thành Luyện Gõ!</h2>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6 }}>
+            {strictMode ? 'Hoàn thành Test Gõ Từ!' : 'Hoàn thành Luyện Gõ!'}
+          </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 24 }}>
             Bộ từ: <strong style={{ color: 'var(--text-primary)' }}>{deck?.name || 'Từ vựng'}</strong>
           </p>
@@ -209,21 +273,21 @@ export default function TypingPracticePage() {
               <div style={{ fontSize: 32, fontWeight: 900, color: accuracy >= 80 ? 'var(--green)' : 'var(--amber)' }}>
                 {accuracy}%
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Tỷ lệ đúng</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Độ chính xác</div>
             </div>
 
             <div style={{ width: 1, height: 40, background: 'var(--border)' }} />
 
             <div>
               <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--green)' }}>{correct}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Từ đúng</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Gõ đúng</div>
             </div>
 
             <div style={{ width: 1, height: 40, background: 'var(--border)' }} />
 
             <div>
               <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--rose)' }}>{wrong}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Từ sai</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Lần sai</div>
             </div>
           </div>
 
@@ -239,6 +303,8 @@ export default function TypingPracticePage() {
                 setPhase('typing');
                 setCorrect(0);
                 setWrong(0);
+                setStrictError(null);
+                setStrictSuccess(false);
                 setDone(false);
               }}
             >
@@ -254,7 +320,7 @@ export default function TypingPracticePage() {
     );
   }
 
-  const { comparisons, isExact } = getCharComparison(currentCard.term, userInput);
+  const { comparisons } = getCharComparison(currentCard.term, userInput);
   const progressPct = Math.round(((index + 1) / cards.length) * 100);
 
   // Mask example sentence with blank line
@@ -266,15 +332,27 @@ export default function TypingPracticePage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+        @keyframes shakeKeyframe {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-10px); }
+          40%, 80% { transform: translateX(10px); }
+        }
+        .shake-animation {
+          animation: shakeKeyframe 0.4s ease-in-out;
+        }
+      `}</style>
+
       {/* Header Bar */}
       <header style={{
-        padding: '16px 32px',
+        padding: '14px 28px',
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 16
+        gap: 16,
+        flexWrap: 'wrap'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link href={`/decks/${deckId}`} className="btn btn-ghost btn-sm btn-icon" title="Trở về">
@@ -286,6 +364,52 @@ export default function TypingPracticePage() {
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{deck?.name}</div>
           </div>
+        </div>
+
+        {/* Mode Selector Pill Toggle */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          background: 'var(--bg-primary)',
+          padding: 3,
+          borderRadius: 10,
+          border: '1px solid var(--border)'
+        }}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => { setStrictMode(false); setStrictError(null); }}
+            style={{
+              borderRadius: 7,
+              padding: '5px 12px',
+              fontSize: 12,
+              fontWeight: 700,
+              background: !strictMode ? 'var(--bg-card)' : 'transparent',
+              color: !strictMode ? 'var(--accent)' : 'var(--text-secondary)',
+              border: !strictMode ? '1px solid var(--border)' : 'none',
+              boxShadow: !strictMode ? '0 2px 6px rgba(0,0,0,0.05)' : 'none'
+            }}
+          >
+            📖 Luyện tập thường
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => { setStrictMode(true); setStrictError(null); }}
+            style={{
+              borderRadius: 7,
+              padding: '5px 12px',
+              fontSize: 12,
+              fontWeight: strictMode ? 800 : 600,
+              background: strictMode ? 'linear-gradient(135deg, #e11d48, #f43f5e)' : 'transparent',
+              color: strictMode ? '#ffffff' : 'var(--rose)',
+              border: 'none',
+              boxShadow: strictMode ? '0 2px 10px rgba(225,29,72,0.3)' : 'none'
+            }}
+          >
+            🎯 Test (Gõ đúng mới qua)
+          </button>
         </div>
 
         {/* Progress pill & scores */}
@@ -316,8 +440,21 @@ export default function TypingPracticePage() {
         <div style={{ width: '100%', maxWidth: 640 }}>
           <div className="card animate-up" style={{ padding: 32, position: 'relative' }}>
             
+            {/* Mode Banner Indicator */}
+            {strictMode && (
+              <div style={{
+                position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
+                background: 'linear-gradient(135deg, #e11d48, #f43f5e)',
+                color: '#ffffff', fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
+                letterSpacing: 1, padding: '4px 14px', borderRadius: 20,
+                boxShadow: '0 4px 12px rgba(225,29,72,0.3)', display: 'flex', alignItems: 'center', gap: 6
+              }}>
+                <Target size={13} /> Chế độ Test: Gõ chính xác mới qua từ tiếp theo
+              </div>
+            )}
+
             {/* Top Info Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, marginTop: strictMode ? 8 : 0 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {currentCard.partOfSpeech && (
                   <span className="badge badge-accent" style={{ textTransform: 'capitalize' }}>
@@ -376,20 +513,20 @@ export default function TypingPracticePage() {
                     <input
                       ref={inputRef}
                       type="text"
-                      className="input"
+                      className={`input ${isShaking ? 'shake-animation' : ''}`}
                       style={{
                         fontSize: 20,
                         fontWeight: 600,
                         textAlign: 'center',
                         letterSpacing: 1,
                         padding: '16px 20px',
-                        borderColor: userInput ? 'var(--accent)' : 'var(--border)',
-                        boxShadow: userInput ? 'var(--shadow-glow)' : 'none',
+                        borderColor: strictError ? 'var(--rose)' : (strictSuccess ? 'var(--green)' : (userInput ? 'var(--accent)' : 'var(--border)')),
+                        boxShadow: strictError ? '0 0 16px rgba(225,29,72,0.3)' : (strictSuccess ? '0 0 16px rgba(5,150,105,0.3)' : (userInput ? 'var(--shadow-glow)' : 'none')),
                         transition: 'all 0.2s ease',
                       }}
                       placeholder="Gõ từ vựng tiếng Anh..."
                       value={userInput}
-                      onChange={e => setUserInput(e.target.value)}
+                      onChange={e => { setUserInput(e.target.value); if (strictError) setStrictError(null); }}
                       onKeyDown={handleKeyDown}
                       autoFocus
                     />
@@ -413,12 +550,62 @@ export default function TypingPracticePage() {
                     </div>
                   </div>
 
+                  {/* Strict Mode Error Alert Banner */}
+                  {strictMode && strictError && (
+                    <div className="animate-up" style={{
+                      marginTop: 14, padding: '12px 16px', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(225, 29, 72, 0.1)', border: '1.5px solid rgba(225, 29, 72, 0.35)',
+                      color: 'var(--rose)', fontSize: 13, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <ShieldAlert size={18} />
+                        <span>{strictError}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setShowHint(!showHint)}
+                        style={{ fontSize: 11, textDecoration: 'underline', padding: '2px 6px', color: 'var(--rose)' }}
+                      >
+                        <HelpCircle size={13} /> {showHint ? 'Ẩn đáp án' : 'Xem đáp án'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Strict Mode Hint Display */}
+                  {strictMode && showHint && (
+                    <div className="animate-fade" style={{
+                      marginTop: 10, textAlign: 'center', padding: '8px 12px',
+                      background: 'var(--accent-glow)', borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(79,70,229,0.2)', fontSize: 13, fontWeight: 700, color: 'var(--accent)'
+                    }}>
+                      💡 Từ đúng chuẩn: <strong>"{targetTerm}"</strong> (Gõ lại chính xác từ này để qua)
+                    </div>
+                  )}
+
+                  {/* Strict Mode Success Toast */}
+                  {strictMode && strictSuccess && (
+                    <div className="animate-up" style={{
+                      marginTop: 14, padding: '12px 16px', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(5, 150, 105, 0.12)', border: '1.5px solid rgba(5, 150, 105, 0.35)',
+                      color: 'var(--green)', fontSize: 14, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                    }}>
+                      <CheckCircle2 size={18} /> Chính xác 100%! Đang chuyển từ tiếp theo...
+                    </div>
+                  )}
+
                   <div style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--text-muted)' }}>
-                    Nhập từ và bấm <strong style={{ color: 'var(--text-primary)' }}>Enter</strong> để kiểm tra
+                    {strictMode ? (
+                      <span>🎯 Chế độ Test: Nhập <strong style={{ color: 'var(--rose)' }}>chính xác từ vựng</strong> và bấm <strong>Enter</strong> để qua câu</span>
+                    ) : (
+                      <span>Nhập từ và bấm <strong style={{ color: 'var(--text-primary)' }}>Enter</strong> để kiểm tra</span>
+                    )}
                   </div>
                 </div>
               ) : (
-                /* CHECKED PHASE: Character Highlight Comparison */
+                /* CHECKED PHASE: Character Highlight Comparison (Standard Mode) */
                 <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   
                   {/* Status Result Banner */}
@@ -431,11 +618,11 @@ export default function TypingPracticePage() {
                     gap: 10,
                     fontWeight: 700,
                     fontSize: 15,
-                    background: isExact ? 'rgba(5, 150, 105, 0.12)' : 'rgba(225, 29, 72, 0.12)',
-                    color: isExact ? 'var(--green)' : 'var(--rose)',
-                    border: `1px solid ${isExact ? 'rgba(5, 150, 105, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
+                    background: comparisons.every(c => c.isMatch) ? 'rgba(5, 150, 105, 0.12)' : 'rgba(225, 29, 72, 0.12)',
+                    color: comparisons.every(c => c.isMatch) ? 'var(--green)' : 'var(--rose)',
+                    border: `1px solid ${comparisons.every(c => c.isMatch) ? 'rgba(5, 150, 105, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
                   }}>
-                    {isExact ? (
+                    {comparisons.every(c => c.isMatch) ? (
                       <>
                         <CheckCircle2 size={20} /> Chính xác! Bạn đã gõ rất chuẩn.
                       </>
@@ -501,7 +688,7 @@ export default function TypingPracticePage() {
                   </div>
 
                   {/* Correct Answer Reference */}
-                  {!isExact && (
+                  {!comparisons.every(c => c.isMatch) && (
                     <div style={{
                       textAlign: 'center',
                       padding: '12px 16px',
@@ -531,7 +718,6 @@ export default function TypingPracticePage() {
                     >
                       Bấm Enter ↵ để sang từ tiếp theo <ArrowRight size={18} />
                     </button>
-                    {/* Hidden focus input for Enter key listener in checked phase */}
                     <input
                       ref={inputRef}
                       type="text"

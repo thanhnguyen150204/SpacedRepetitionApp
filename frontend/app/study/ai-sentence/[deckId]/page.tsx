@@ -16,13 +16,38 @@ interface CharComparison {
   isMatch: boolean;
 }
 
+// Ultra-robust Clean term algorithm: Handles all closed & unclosed parenthetical annotations (e.g. resolve (v. or resolve (v.), [n.], etc.)
 function cleanWordTerm(rawTerm: string): string {
   if (!rawTerm) return '';
-  let cleaned = rawTerm.replace(/\s*\([^)]*\)?/gi, '');
-  cleaned = cleaned.replace(/\s+\b(v|n|adj|adv|phr|prep|phrase)\.?,?$/gi, '');
-  cleaned = cleaned.replace(/\b(v|n|adj|adv|phr|prep)\.?$/gi, '');
-  cleaned = cleaned.trim();
-  return cleaned || rawTerm.trim();
+  let str = rawTerm.trim();
+
+  // 1. Remove complete parenthetical or bracketed expressions: (v.), [n.], etc.
+  str = str.replace(/\([^)]*\)/g, '');
+  str = str.replace(/\[[^\]]*\]/g, '');
+
+  // 2. Remove unclosed parenthetical or bracketed expressions at end of string: (v., (v, (n., (adj, (phrase...
+  str = str.replace(/\s*\([^)]*$/g, '');
+  str = str.replace(/\s*\[[^\]]*$/g, '');
+
+  // 3. Remove leading unclosed or closed parenthetical remnants at start of string: (v. ), (n) ...
+  str = str.replace(/^\s*\([^)]*\)\s*/g, '');
+  str = str.replace(/^\s*\([^\)]*$/g, '');
+
+  // 4. Remove standalone part-of-speech annotations at the end or start (e.g., ", v.", "- n.", "/ adj", "v.")
+  const posRegexEnd = /\s*[\/,;:\-\(]?\s*\b(v|n|adj|adv|prep|phr|phrase|conj|pron|num|vi|vt|noun|verb|adjective|adverb)\b[\.\)\s\/,\-]*$/gi;
+  str = str.replace(posRegexEnd, '');
+
+  const posRegexStart = /^\s*[\/,;:\-\(]?\s*\b(v|n|adj|adv|prep|phr|phrase|conj|pron|num|vi|vt|noun|verb|adjective|adverb)\b[\.\)\s\/,\-]+\s*/gi;
+  str = str.replace(posRegexStart, '');
+
+  // 5. Trim leading and trailing punctuation (commas, dots, slashes, colons, dashes, parentheses)
+  str = str.replace(/^[\s,/\-\(\)\[\]\.\;:!]+|[\s,/\-\(\)\[\]\.\;:!]+$/g, '');
+
+  // 6. Normalize internal whitespace
+  str = str.replace(/\s+/g, ' ').trim();
+
+  // Fallback: If cleaning somehow stripped everything, return original trimmed string
+  return str || rawTerm.trim();
 }
 
 export default function AiSentencePracticePage() {
