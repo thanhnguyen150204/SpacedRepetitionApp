@@ -252,10 +252,11 @@ function ReviewContent() {
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-                    <div style={{
+                    <div className="card-icon-box" style={{
                       width: 42, height: 42, borderRadius: 12,
                       background: 'rgba(225,29,72,0.14)', color: '#e11d48',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      transition: 'transform 0.25s ease'
                     }}>
                       <BookOpen size={21} />
                     </div>

@@ -338,12 +338,12 @@ option {
 
 /* ── Review Due Deck Card (Urgency Red / Rose Tinted) ── */
 .review-deck-card {
-  background: linear-gradient(135deg, rgba(255, 241, 242, 0.95), rgba(254, 226, 226, 0.6));
+  background: linear-gradient(135deg, rgba(255, 241, 242, 0.95), rgba(254, 226, 226, 0.65));
   border: 1.5px solid rgba(225, 29, 72, 0.28);
   border-radius: var(--radius);
   padding: 24px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
   text-decoration: none;
   color: inherit;
   display: flex;
@@ -351,7 +351,7 @@ option {
   justify-content: space-between;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.06);
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.08);
 }
 
 [data-theme='dark'] .review-deck-card {
@@ -371,15 +371,31 @@ option {
   transition: opacity 0.25s ease;
 }
 
+/* Distinct Lift-Up Hover Effect */
 .review-deck-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  border-color: rgba(225, 29, 72, 0.6);
-  box-shadow: 0 14px 30px -4px rgba(225, 29, 72, 0.2);
-  background: linear-gradient(135deg, rgba(255, 228, 230, 1), rgba(254, 205, 211, 0.8));
+  transform: translateY(-8px) scale(1.02);
+  border-color: rgba(225, 29, 72, 0.7);
+  box-shadow: 0 20px 35px -8px rgba(225, 29, 72, 0.28), 0 0 15px rgba(225, 29, 72, 0.12);
+  background: linear-gradient(135deg, rgba(255, 228, 230, 1), rgba(254, 205, 211, 0.85));
+}
+
+.review-deck-card:hover .badge {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35);
+}
+
+.review-deck-card:hover .card-icon-box {
+  transform: rotate(-6deg) scale(1.1);
+}
+
+/* Click / Active Press Effect */
+.review-deck-card:active {
+  transform: translateY(-2px) scale(0.99);
+  box-shadow: 0 8px 18px -4px rgba(225, 29, 72, 0.2);
 }
 
 [data-theme='dark'] .review-deck-card:hover {
-  background: linear-gradient(135deg, rgba(225, 29, 72, 0.2), rgba(159, 18, 57, 0.15));
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.22), rgba(159, 18, 57, 0.18));
 }
 
 /* ── Empty State ── */
